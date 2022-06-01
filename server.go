@@ -2,14 +2,18 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net"
+	"net/http"
+	"strconv"
+	"strings"
 )
 
 type LogServer struct {
 	uri       string
 	tcpListen net.Listener
-	cache     map[int32]*BuffArray
+	cache     map[int64]*BuffArray
 }
 
 func NewLogServer(uri string) *LogServer {
@@ -22,7 +26,7 @@ func NewLogServer(uri string) *LogServer {
 	return &LogServer{
 		uri:       uri,
 		tcpListen: l,
-		cache:     make(map[int32]*BuffArray, CACHE_SIZE),
+		cache:     make(map[int64]*BuffArray, CACHE_SIZE),
 	}
 }
 
@@ -37,6 +41,11 @@ func (ls *LogServer) Start() {
 	}
 }
 
+func (ls *LogServer) StartWeb() {
+	http.HandleFunc("/stream/", ls.homePageHandler)
+	http.ListenAndServe(":8080", nil)
+}
+
 func (ls *LogServer) handleTcpRequest(conn net.Conn) {
 	drainOp := NewDrainLogOp(conn)
 	defer drainOp.Close()
@@ -45,4 +54,35 @@ func (ls *LogServer) handleTcpRequest(conn net.Conn) {
 
 	ls.cache[drainOp.tokenNum] = drainOp.ReleaseBuff()
 	fmt.Println(ls.cache)
+}
+
+func (ls *LogServer) homePageHandler(w http.ResponseWriter, r *http.Request) {
+	// Trim prefix and prase stream id.
+	res := strings.TrimPrefix(r.URL.Path, "/stream/")
+	if len(res) == 0 {
+		fmt.Fprintf(w, "Invalid stream ID!")
+		return
+	}
+	n, err := strconv.ParseInt(res, 16, 64)
+	if err != nil {
+		fmt.Fprintf(w, "Invalid stream ID!")
+		return
+	}
+
+	log.Printf("[%x] %v %v", n, r.Method, r.RemoteAddr)
+
+	buff, found := ls.cache[n]
+	if !found {
+		log.Printf("[%x] Cache Miss!", n)
+		fmt.Fprintf(w, "Cache Miss!")
+		return
+	}
+
+	log.Printf("[%x] Cache Hit!", n)
+
+	tmp := new(strings.Builder)
+	io.Copy(tmp, buff)
+
+	fmt.Println(tmp.String())
+	fmt.Fprint(w, tmp.String())
 }

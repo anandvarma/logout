@@ -1,6 +1,9 @@
 package main
 
-import "log"
+import (
+	"io"
+	"log"
+)
 
 type BuffArray struct {
 	arr        [][]byte
@@ -49,5 +52,5 @@ func (ba *BuffArray) Read(buff []byte) (n int, err error) {
 	for ii := 0; ii < startIdx; ii++ {
 		readBytes += copy(buff[readBytes:], ba.arr[ii])
 	}
-	return readBytes, nil
+	return readBytes, io.EOF
 }
