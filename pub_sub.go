@@ -8,13 +8,13 @@ import (
 type Subscriber interface {
 	// Callback invoked when a new event is to be dispatched.
 	// This call is expected to be non blocking and quick.
-	Read(buf []byte)
+	SubCb(buf []byte)
 }
 
 // TODO: Make generic for Go 1.18+
 
-var ErrTopicNotFound = errors.New("No such topic in the pub-sub bus")
-var ErrSubNotFound = errors.New("No such sub in the pub-sub bus")
+var ErrTopicNotFound = errors.New("no such topic in the pub-sub bus")
+var ErrSubNotFound = errors.New("no such sub in the pub-sub bus")
 
 type PubSub struct {
 	bus  map[int64][]Subscriber
@@ -38,7 +38,7 @@ func (ps *PubSub) Publish(id int64, val []byte) {
 	}
 
 	for _, sub := range subs {
-		sub.Read(val)
+		sub.SubCb(val)
 	}
 }
 

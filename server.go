@@ -13,7 +13,8 @@ import (
 type LogServer struct {
 	uri       string
 	tcpListen net.Listener
-	cache     map[int64]*BuffArray
+	pubsub    PubSub
+	cache     LogCache
 }
 
 func NewLogServer(uri string) *LogServer {
@@ -26,7 +27,8 @@ func NewLogServer(uri string) *LogServer {
 	return &LogServer{
 		uri:       uri,
 		tcpListen: l,
-		cache:     make(map[int64]*BuffArray, CACHE_SIZE),
+		pubsub:    *NewPubSub(),
+		cache:     *NewLogCache(),
 	}
 }
 
@@ -37,23 +39,15 @@ func (ls *LogServer) Start() {
 		if err != nil {
 			log.Fatal("Error accepting: " + err.Error())
 		}
-		go ls.handleTcpRequest(conn)
+
+		drainOp := NewDrainLogOp(conn, &ls.pubsub, &ls.cache)
+		go drainOp.Start()
 	}
 }
 
 func (ls *LogServer) StartWeb() {
 	http.HandleFunc("/stream/", ls.homePageHandler)
 	http.ListenAndServe(":8080", nil)
-}
-
-func (ls *LogServer) handleTcpRequest(conn net.Conn) {
-	drainOp := NewDrainLogOp(conn)
-	defer drainOp.Close()
-	drainOp.Greet()
-	drainOp.Drain()
-
-	ls.cache[drainOp.tokenNum] = drainOp.ReleaseBuff()
-	fmt.Println(ls.cache)
 }
 
 func (ls *LogServer) homePageHandler(w http.ResponseWriter, r *http.Request) {
@@ -71,18 +65,26 @@ func (ls *LogServer) homePageHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[%x] %v %v", n, r.Method, r.RemoteAddr)
 
-	buff, found := ls.cache[n]
+	buff, found := ls.cache.Get(n)
 	if !found {
 		log.Printf("[%x] Cache Miss!", n)
 		fmt.Fprintf(w, "Cache Miss!")
 		return
 	}
 
-	log.Printf("[%x] Cache Hit!", n)
+	if !buff.IsClosed() {
+		// Write in progress, become a subscriber.
+		log.Printf("[%x] Streaming...", n)
+		streamOp := NewStreamLogOp(w)
+		streamOp.Start()
+		ls.pubsub.Subscribe(n, streamOp)
+		return
+	}
 
+	// Log stream closed. Send the ring buffer contents out.
+	log.Printf("[%x] Cache Hit!", n)
 	tmp := new(strings.Builder)
 	io.Copy(tmp, buff)
-
 	fmt.Println(tmp.String())
 	fmt.Fprint(w, tmp.String())
 }

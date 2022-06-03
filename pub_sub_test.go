@@ -9,7 +9,7 @@ var totalReads int = 0
 type DummySub struct {
 }
 
-func (sub *DummySub) Read(buf []byte) {
+func (sub *DummySub) SubCb(buf []byte) {
 	totalReads++
 }
 

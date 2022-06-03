@@ -1,19 +1,25 @@
 package main
 
-import "io"
+import (
+	"log"
+	"net/http"
+)
 
 type StreamLogOp struct {
-	out     io.Writer
-	logBufs [][]byte
+	out http.ResponseWriter
 }
 
-func NewStreamLogOp(out io.Writer) *StreamLogOp {
+func NewStreamLogOp(out http.ResponseWriter) *StreamLogOp {
 	return &StreamLogOp{
-		out:     out,
-		logBufs: make([][]byte, 0 /* size */, BUFF_ARR_CAP /* capacity */),
+		out: out,
 	}
 }
 
-func (op *StreamLogOp) Subscribe(ba *BuffArray) {
+func (op *StreamLogOp) Start() {
+	// Upgrade to websocket.
+}
 
+func (op *StreamLogOp) SubCb(buf []byte) {
+	n, err := op.out.Write(buf)
+	log.Printf("STREAM >> SubCb() : %d %v", n, err)
 }
