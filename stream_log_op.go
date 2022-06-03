@@ -17,6 +17,7 @@ func NewStreamLogOp(out http.ResponseWriter) *StreamLogOp {
 
 func (op *StreamLogOp) Start() {
 	// Upgrade to websocket.
+	op.out.Header().Set("Content-Type", "text/plain")
 }
 
 func (op *StreamLogOp) SubCb(buf []byte) {

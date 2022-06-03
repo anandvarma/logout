@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/gorilla/websocket"
 )
 
 type LogServer struct {
@@ -46,11 +48,48 @@ func (ls *LogServer) Start() {
 }
 
 func (ls *LogServer) StartWeb() {
-	http.HandleFunc("/stream/", ls.homePageHandler)
+	http.HandleFunc("/", ls.staticPageHandler)
+	http.HandleFunc("/stream", ls.webSocketHandler)
 	http.ListenAndServe(":8080", nil)
 }
 
-func (ls *LogServer) homePageHandler(w http.ResponseWriter, r *http.Request) {
+func (ls *LogServer) staticPageHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Accepted HTTP Connection... %s", r.URL.Path)
+
+	if r.URL.Path == "/" {
+		http.ServeFile(w, r, "index.html")
+		return
+	}
+	if r.URL.Path == "/view" {
+		http.ServeFile(w, r, "view.html")
+		return
+	}
+
+	// 404
+	w.Write([]byte("404 Page Not Found!"))
+}
+
+var wsUpgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
+
+func (ls *LogServer) webSocketHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Accepted WebSocket Connection...")
+	wsUpgrader.CheckOrigin = func(r *http.Request) bool { return true }
+	ws, err := wsUpgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Printf("Upgrade failed: %v", err)
+	}
+	defer ws.Close()
+
+	ws.WriteMessage(1, []byte("Hiiiiii!!"))
+	if err != nil {
+		log.Printf("WebSocket Write failed: %v", err)
+	}
+}
+
+func (ls *LogServer) oldie(w http.ResponseWriter, r *http.Request) {
 	// Trim prefix and prase stream id.
 	res := strings.TrimPrefix(r.URL.Path, "/stream/")
 	if len(res) == 0 {
