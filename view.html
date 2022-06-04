@@ -5,18 +5,91 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="X-UA-Compatible" content="ie=edge" />
     <title>LogOut</title>
+    <style>
+      pre.bash {
+        background-color: black;
+        color: white;
+        font-size: medium ; 
+        font-family: Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;
+        width: 100%;
+        display: inline-block;
+      } 
+
+      .blinking-cursor {
+        font-size: medium;
+        color: #2E3D48;
+        -webkit-animation: 1s blink step-end infinite;
+        -moz-animation: 1s blink step-end infinite;
+        -ms-animation: 1s blink step-end infinite;
+        -o-animation: 1s blink step-end infinite;
+        animation: 1s blink step-end infinite;
+      }
+
+      @keyframes "blink" {
+        from, to {
+          color: transparent;
+        }
+        50% {
+          color: white;
+        }
+      }
+
+      @-moz-keyframes blink {
+        from, to {
+          color: transparent;
+        }
+        50% {
+          color: white;
+        }
+      }
+
+      @-webkit-keyframes "blink" {
+        from, to {
+          color: transparent;
+        }
+        50% {
+          color: white;
+        }
+      }
+
+      @-ms-keyframes "blink" {
+        from, to {
+          color: transparent;
+        }
+        50% {
+          color: white;
+        }
+      }
+
+      @-o-keyframes "blink" {
+        from, to {
+          color: transparent;
+        }
+        50% {
+          color: white;
+        }
+      }
+    </style>
   </head>
-  <body>
-    <h2>Hello World!</h2>
-    <h3>Log Viewer</h3>
+  <body style="background-color:black;">
+    <pre class="bash" id="content"></pre>
+    <pre class="blinking-cursor" id="live">█</pre>
 
     <script>
-        let socket = new WebSocket("ws://127.0.0.1:8080/stream/");
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+
+        let socket = new WebSocket(`ws://127.0.0.1:8080/stream/${token}`);
         console.log("Attempting Connection...");
 
         socket.onopen = () => {
             console.log("Successfully Connected");
             socket.send("Hi From the Client!")
+        };
+
+        socket.onmessage = function(event) {
+            //alert(`[message] Data received from server`);
+            document.getElementById("content").innerHTML += event.data;
         };
         
         socket.onclose = event => {
@@ -27,7 +100,6 @@
         socket.onerror = error => {
             console.log("Socket Error: ", error);
         };
-
     </script>
   </body>
 </html>
