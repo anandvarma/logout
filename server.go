@@ -51,11 +51,11 @@ func (ls *LogServer) staticPageHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Accepted HTTP Connection... %s", r.URL.Path)
 
 	if r.URL.Path == "/" {
-		http.ServeFile(w, r, "index.html")
+		http.ServeFile(w, r, "./html/index.html")
 		return
 	}
 	if r.URL.Path == "/view" {
-		http.ServeFile(w, r, "view.html")
+		http.ServeFile(w, r, "./html/view.html")
 		return
 	}
 

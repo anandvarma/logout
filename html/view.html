@@ -9,14 +9,14 @@
       pre.bash {
         background-color: black;
         color: white;
-        font-size: medium ; 
+        font-size: small ; 
         font-family: Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;
         width: 100%;
         display: inline-block;
       } 
 
       .blinking-cursor {
-        font-size: medium;
+        font-size: small;
         color: #2E3D48;
         -webkit-animation: 1s blink step-end infinite;
         -moz-animation: 1s blink step-end infinite;
@@ -90,6 +90,7 @@
         socket.onmessage = function(event) {
             //alert(`[message] Data received from server`);
             document.getElementById("content").innerHTML += event.data;
+            document.getElementById( 'live' ).scrollIntoView();
         };
         
         socket.onclose = event => {
