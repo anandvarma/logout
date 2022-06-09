@@ -16,7 +16,7 @@
       } 
 
       .blinking-cursor {
-        font-size: small;
+        font-size: smaller;
         color: #2E3D48;
         -webkit-animation: 1s blink step-end infinite;
         -moz-animation: 1s blink step-end infinite;
@@ -79,7 +79,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const token = urlParams.get('token');
 
-        let socket = new WebSocket(`ws://127.0.0.1:8080/stream/${token}`);
+        let socket = new WebSocket(`ws://172.30.214.70:8080/stream/${token}`);
         console.log("Attempting Connection...");
 
         socket.onopen = () => {

@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/gorilla/websocket"
 )
@@ -18,7 +17,8 @@ type StreamLogOp struct {
 	pubsub *PubSub
 	cache  *LogCache
 	ws     *websocket.Conn
-	lock   sync.Mutex // serialize access to the websocket
+	token  int64
+	queue  chan []byte
 }
 
 func NewStreamLogOp(r *http.Request, w http.ResponseWriter, pubsub *PubSub, cache *LogCache) *StreamLogOp {
@@ -28,96 +28,124 @@ func NewStreamLogOp(r *http.Request, w http.ResponseWriter, pubsub *PubSub, cach
 		pubsub: pubsub,
 		cache:  cache,
 		ws:     nil,
+		token:  0,
+		queue:  nil,
 	}
 }
 
+var wsUpgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	CheckOrigin:     func(r *http.Request) bool { return true },
+}
+
 func (op *StreamLogOp) Start() {
-	defer op.Finish()
-
-	// Parse stream identifier token.
-	res := strings.TrimPrefix(op.r.URL.Path, "/stream/")
-	if len(res) == 0 {
-		fmt.Fprintf(op.w, "Invalid stream token!")
-		return
-	}
-	n, err := strconv.ParseInt(res, 16, 64)
-	if err != nil {
-		fmt.Fprintf(op.w, "Invalid stream token: %s", res)
-		return
-	}
-	log.Printf("[%x] %v %v", n, op.r.Method, op.r.RemoteAddr)
-
-	// Upgrade to websocket.
-	var wsUpgrader = websocket.Upgrader{
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
-	}
-	wsUpgrader.CheckOrigin = func(r *http.Request) bool { return true }
-
+	// Upgrade connection to a web socket.
 	ws, err := wsUpgrader.Upgrade(op.w, op.r, nil)
 	if err != nil {
 		log.Printf("Upgrade failed: %v", err)
 		return
 	}
 	op.ws = ws
+	defer op.ws.Close()
+	defer log.Printf("[%x] ws.Close()", op.token)
 
-	op.GetLogsForToken(n)
-}
-
-func (op *StreamLogOp) GetLogsForToken(token int64) {
-	buff, found := op.cache.Get(token)
-	if !found {
-		log.Printf("[%x] Cache Miss!", token)
-		op.ws.WriteMessage(websocket.TextMessage, []byte("No logs found!"))
+	// Parse stream identification token.
+	ok := op.ParseToken()
+	if !ok {
+		op.ws.WriteMessage(websocket.TextMessage, []byte("Bad stream token!"))
+		fmt.Println("404")
 		return
 	}
 
-	if buff.IsClosed() {
-		// Log stream closed. Send the ring buffer contents out.
-		log.Printf("[%x] Cache Hit!", token)
-		tmp := new(strings.Builder)
-		io.Copy(tmp, buff)
-		fmt.Println(tmp.String())
-		op.ws.WriteMessage(websocket.TextMessage, []byte(tmp.String()))
+	// Fetch the in memory stats.
+	isLive := op.GetMemLogs()
+	if !isLive {
 		return
 	}
 
-	// Write in progress, become a subscriber.
-	op.lock.Lock()
-	log.Printf("[%x] Streaming...", token)
-	op.pubsub.Subscribe(token, op)
-	op.lock.Unlock()
+	// Write in progress, become a subscriber and spawn a writer to consume incoming logs.
+	log.Printf("[%x] Streaming...", op.token)
+	op.queue = make(chan []byte, STREAM_QUEUE_SIZE)
+	defer close(op.queue)
+	defer log.Printf("[%x] close(op.queue)", op.token)
 
-	// Block until the socket is open and read.
-	op.ListenForMessages()
-}
+	op.pubsub.Subscribe(op.token, op)
+	defer op.pubsub.Unsubscribe(op.token, op)
+	defer log.Printf("[%x] pubsub.Unsubscribe()", op.token)
 
-func (op *StreamLogOp) ListenForMessages() {
-	for op.ws != nil {
-		mType, msg, err := op.ws.ReadMessage()
+	// Start a stream writer in the background to do the work.
+	go op.streamWriter()
+
+	// Read Loop. Blocks until websocket gets terminated by the client.
+	for {
+		mt, b, err := ws.ReadMessage()
 		if err != nil {
 			log.Printf("Failed to read from socket: %v", err)
 			break
 		}
-		log.Printf("Socket read: %d %s %v", mType, string(msg), err)
+		log.Printf("Socket read: %d %s %v", mt, string(b), err)
+	}
+	log.Printf("[%x] Start() Completed!", op.token)
+}
+
+func (op *StreamLogOp) ParseToken() bool {
+	res := strings.TrimPrefix(op.r.URL.Path, "/stream/")
+	if len(res) == 0 {
+		fmt.Println("Invalid stream token!")
+		return false
+	}
+	n, err := strconv.ParseInt(res, 16, 64)
+	if err != nil {
+		fmt.Printf("Invalid stream token: %s", res)
+		return false
+	}
+	op.token = n
+	log.Printf("[%x] %v %v", op.token, op.r.Method, op.r.RemoteAddr)
+	return true
+}
+
+func (op *StreamLogOp) GetMemLogs() bool {
+	buff, found := op.cache.Get(op.token)
+	if !found {
+		log.Printf("[%x] Cache Miss!", op.token)
+		op.ws.WriteMessage(websocket.TextMessage, []byte("No logs found!"))
+		return false
 	}
 
-	op.Finish()
+	// Read the ring buffer and add to the streaming queue.
+	log.Printf("[%x] Cache Hit!", op.token)
+	tmp := new(strings.Builder)
+	io.Copy(tmp, buff)
+	op.ws.WriteMessage(websocket.TextMessage, []byte(tmp.String()))
+	fmt.Println(tmp.String())
+	return !buff.IsClosed()
 }
 
-func (op *StreamLogOp) SubCb(buf []byte) {
-	// SubCb runs on the publisher's thread. Spin a go routine to avoid blocking.
-	go op.WriteLog(buf)
+func (op *StreamLogOp) streamWriter() {
+	defer log.Printf("[%x] streamWriter goroutine ending...", op.token)
+
+	for buf := range op.queue {
+		fmt.Println("Dequeued sucessfully")
+		err := op.ws.WriteMessage(websocket.TextMessage, buf)
+		log.Printf("STREAM >> : %v", err)
+		if err != nil {
+			log.Println("Write to websocket failed, stopping stream!")
+			return
+		}
+	}
 }
 
-func (op *StreamLogOp) WriteLog(buf []byte) {
-	op.lock.Lock()
-	defer op.lock.Unlock()
-
-	err := op.ws.WriteMessage(websocket.TextMessage, buf)
-	log.Printf("STREAM >> SubCb() : %v", err)
-}
-
-func (op *StreamLogOp) Finish() {
-	op.ws.Close()
+func (op *StreamLogOp) SubCb(buf []byte) bool {
+	// This function runs on the publisher's thread. Avoid blocking.
+	select {
+	case op.queue <- buf:
+		fmt.Println("Enqueued sucessfully.")
+		return true
+	default:
+		// Queue full.
+		// The websocket is unable to keep up with the flow of incoming logs.
+		// Unsubscribe from further events.
+		return false
+	}
 }

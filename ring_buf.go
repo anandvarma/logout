@@ -3,12 +3,14 @@ package main
 import (
 	"io"
 	"log"
+	"sync"
 )
 
 type RingBuf struct {
 	arr        [][]byte
 	numAppends int
 	isClosed   bool
+	lock       sync.RWMutex
 }
 
 func NewRingBuf(capacity int) *RingBuf {
@@ -16,10 +18,14 @@ func NewRingBuf(capacity int) *RingBuf {
 		arr:        make([][]byte, 0 /* size */, capacity),
 		numAppends: 0,
 		isClosed:   false,
+		lock:       sync.RWMutex{},
 	}
 }
 
 func (ba *RingBuf) Len() int {
+	ba.lock.RLock()
+	defer ba.lock.RUnlock()
+
 	if ba.numAppends < cap(ba.arr) {
 		return ba.numAppends
 	} else {
@@ -28,12 +34,16 @@ func (ba *RingBuf) Len() int {
 }
 
 // PubSub interface.
-func (ba *RingBuf) SubCb(buf []byte) {
+func (ba *RingBuf) SubCb(buf []byte) bool {
 	log.Printf("RingBuf sub << %d", len(buf))
 	ba.AddBuff(buf)
+	return true // Remain subscribed.
 }
 
 func (ba *RingBuf) AddBuff(buff []byte) {
+	ba.lock.Lock()
+	defer ba.lock.Unlock()
+
 	// Guardrail to prevent writes after Close.
 	if ba.isClosed {
 		log.Fatal("Writing to RingBuf after Close")
@@ -56,27 +66,43 @@ func (ba *RingBuf) AddBuff(buff []byte) {
 }
 
 func (ba *RingBuf) Close() {
+	ba.lock.Lock()
+	defer ba.lock.Unlock()
+
 	log.Println("RingBuf Close()")
 	ba.isClosed = true
 }
 
 func (ba *RingBuf) IsClosed() bool {
+	ba.lock.RLock()
+	defer ba.lock.RUnlock()
+
 	return ba.isClosed
 }
 
-func (ba *RingBuf) Read(buff []byte) (n int, err error) {
+func (ba *RingBuf) ForEachBuf(fn func([]byte)) {
+	ba.lock.RLock()
+	defer ba.lock.RUnlock()
+
 	// Guardrail to ensure Reads come in only after Close.
 	if !ba.isClosed {
-		log.Fatal("Reading from RingBuf before Close")
+		//log.Fatal("Reading from RingBuf before Close")
 	}
 
-	readBytes := 0
 	startIdx := ba.numAppends % cap(ba.arr)
 	for ii := startIdx; ii < ba.Len(); ii++ {
-		readBytes += copy(buff[readBytes:], ba.arr[ii])
+		fn(ba.arr[ii])
 	}
 	for ii := 0; ii < startIdx; ii++ {
-		readBytes += copy(buff[readBytes:], ba.arr[ii])
+		fn(ba.arr[ii])
 	}
+}
+
+// Reader interface.
+func (ba *RingBuf) Read(buff []byte) (n int, err error) {
+	readBytes := 0
+	ba.ForEachBuf(func(b []byte) {
+		readBytes += copy(buff[readBytes:], b)
+	})
 	return readBytes, io.EOF
 }

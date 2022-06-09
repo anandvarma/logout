@@ -7,8 +7,11 @@ import (
 
 type Subscriber interface {
 	// Callback invoked when a new event is to be dispatched.
+	// Returns true if interested in more events. Returning false unsubscribes.
 	// This call is expected to be non blocking and quick.
-	SubCb(buf []byte)
+	// This call should not directly call any PubSub methods. Doing so may
+	// result in dead locks.
+	SubCb(buf []byte) bool
 }
 
 // TODO: Make generic for Go 1.18+
@@ -38,7 +41,11 @@ func (ps *PubSub) Publish(id int64, val []byte) {
 	}
 
 	for _, sub := range subs {
-		sub.SubCb(val)
+		cont := sub.SubCb(val)
+		if !cont {
+			// Subscriber wishes to unsubscribe from further events.
+			ps.unsubscribeUnsafe(id, sub)
+		}
 	}
 }
 
@@ -60,6 +67,10 @@ func (ps *PubSub) Unsubscribe(id int64, sub Subscriber) error {
 	ps.lock.Lock()
 	defer ps.lock.Unlock()
 
+	return ps.unsubscribeUnsafe(id, sub)
+}
+
+func (ps *PubSub) unsubscribeUnsafe(id int64, sub Subscriber) error {
 	subs, exists := ps.bus[id]
 	if !exists || len(subs) == 0 {
 		return ErrTopicNotFound
