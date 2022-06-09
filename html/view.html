@@ -9,14 +9,14 @@
       pre.bash {
         background-color: black;
         color: white;
-        font-size: small ; 
+        font-size: medium; 
         font-family: Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;
         width: 100%;
         display: inline-block;
       } 
 
       .blinking-cursor {
-        font-size: smaller;
+        font-size: small;
         color: #2E3D48;
         -webkit-animation: 1s blink step-end infinite;
         -moz-animation: 1s blink step-end infinite;
@@ -79,12 +79,13 @@
         const urlParams = new URLSearchParams(window.location.search);
         const token = urlParams.get('token');
 
-        let socket = new WebSocket(`ws://172.30.214.70:8080/stream/${token}`);
+        let socket = new WebSocket(`ws://${location.host}/stream/${token}`);
         console.log("Attempting Connection...");
 
         socket.onopen = () => {
             console.log("Successfully Connected");
             socket.send("Hi From the Client!")
+            document.getElementById( 'live' ).style.display = "block"
         };
 
         socket.onmessage = function(event) {
@@ -95,7 +96,7 @@
         
         socket.onclose = event => {
             console.log("Socket Closed Connection: ", event);
-            socket.send("Client Closed!")
+            document.getElementById( 'live' ).style.display = "none"
         };
 
         socket.onerror = error => {
