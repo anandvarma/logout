@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math/rand"
 	"testing"
 )
 
@@ -158,8 +159,10 @@ func TestPubSubOneShot(t *testing.T) {
 	}
 
 	totalReads = 0
-	for i := int64(0); i < 64; i++ {
-		ps.Publish(i, []byte("Bar"))
+	randOrder := rand.Perm(64)
+	t.Log(randOrder)
+	for _, i := range randOrder {
+		ps.Publish(int64(i), []byte("Bar"))
 	}
 	if totalReads != 64*8 {
 		t.Errorf("Unexpected number of reads: %d", totalReads)

@@ -44,7 +44,8 @@ func (ps *PubSub) Publish(id int64, val []byte) {
 		cont := sub.SubCb(val)
 		if !cont {
 			// Subscriber wishes to unsubscribe from further events.
-			ps.unsubscribeUnsafe(id, sub)
+			// Defer to avoid mutating slice mid range iteration.
+			defer ps.unsubscribeUnsafe(id, sub)
 		}
 	}
 }
