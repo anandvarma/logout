@@ -16,7 +16,7 @@ type StreamLogOp struct {
 	r        *http.Request
 	w        http.ResponseWriter
 	pubsub   *PubSub
-	cache    *LogCache
+	cache    *LogStore
 	ws       *websocket.Conn
 	token    int64
 	queue    chan []byte
@@ -24,7 +24,7 @@ type StreamLogOp struct {
 	doneChan chan struct{}
 }
 
-func NewStreamLogOp(r *http.Request, w http.ResponseWriter, pubsub *PubSub, cache *LogCache) *StreamLogOp {
+func NewStreamLogOp(r *http.Request, w http.ResponseWriter, pubsub *PubSub, cache *LogStore) *StreamLogOp {
 	return &StreamLogOp{
 		r:      r,
 		w:      w,
@@ -62,12 +62,17 @@ func (op *StreamLogOp) Start() {
 		return
 	}
 
-	// Fetch the in memory stats.
+	// Fetch persisted logs.
+	done := op.GetPersistentLogs()
+	if done {
+		return
+	}
+
+	// Fetch the in memory logs.
 	isLive := op.GetMemLogs()
 	if !isLive {
 		return
 	}
-
 	log.Printf("[%x] Streaming...", op.token)
 	op.StreamLogs()
 }
@@ -88,8 +93,17 @@ func (op *StreamLogOp) ParseToken() bool {
 	return true
 }
 
+func (op *StreamLogOp) GetPersistentLogs() bool {
+	buf := op.cache.db.GetLogBuf(op.token)
+	if buf == nil {
+		return false
+	}
+	op.ws.WriteMessage(websocket.TextMessage, buf)
+	return true
+}
+
 func (op *StreamLogOp) GetMemLogs() bool {
-	buff, found := op.cache.Get(op.token)
+	buff, found := op.cache.MemGet(op.token)
 	if !found {
 		log.Printf("[%x] Cache Miss!", op.token)
 		op.ws.WriteMessage(websocket.TextMessage, []byte("No logs found!"))
@@ -134,10 +148,10 @@ func (op *StreamLogOp) SubCb(buf []byte) bool {
 	case <-op.ctx.Done():
 		return false
 	case op.queue <- buf:
-		fmt.Println("Enqueued sucessfully.")
+		fmt.Println("Enqueued successfully.")
 		return true // Stay subscribed
 	default:
-		log.Println("Stream buffer full, unbale to keep up with incoming logs")
+		log.Println("Stream buffer full, unable to keep up with incoming logs")
 		op.doneChan <- struct{}{}
 		return false
 	}

@@ -2,15 +2,17 @@ package main
 
 import (
 	"log"
+	"math/rand"
 	"net"
 	"net/http"
+	"time"
 )
 
 type LogServer struct {
 	uri       string
 	tcpListen net.Listener
 	pubsub    PubSub
-	cache     LogCache
+	ls        LogStore
 }
 
 func NewLogServer(uri string) *LogServer {
@@ -20,11 +22,14 @@ func NewLogServer(uri string) *LogServer {
 	}
 	log.Printf("Listening on %s ...", uri)
 
+	// Seed rand to avoid collisions after a restart.
+	rand.Seed(time.Now().UnixNano())
+
 	return &LogServer{
 		uri:       uri,
 		tcpListen: l,
 		pubsub:    *NewPubSub(),
-		cache:     *NewLogCache(),
+		ls:        *NewLogStore(),
 	}
 }
 
@@ -36,7 +41,7 @@ func (ls *LogServer) Start() {
 			log.Fatal("Error accepting: " + err.Error())
 		}
 
-		drainOp := NewDrainLogOp(conn, &ls.pubsub, &ls.cache)
+		drainOp := NewDrainLogOp(conn, &ls.pubsub, &ls.ls)
 		go drainOp.Start()
 	}
 }
@@ -65,6 +70,6 @@ func (ls *LogServer) staticPageHandler(w http.ResponseWriter, r *http.Request) {
 
 func (ls *LogServer) webSocketHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Accepted WebSocket Connection... %s", r.URL.Path)
-	streamOp := NewStreamLogOp(r, w, &ls.pubsub, &ls.cache)
+	streamOp := NewStreamLogOp(r, w, &ls.pubsub, &ls.ls)
 	streamOp.Start()
 }

@@ -57,7 +57,7 @@ func TestPubSub(t *testing.T) {
 		t.Errorf("Got back unexpected error: %v", err)
 	}
 
-	// Unsusbscribe existing sub.
+	// Unsubscribe existing sub.
 	err = ps.Unsubscribe(1, ps.bus[1][0])
 	if err != nil {
 		t.Errorf("Got back unexpected error: %v", err)
@@ -66,7 +66,7 @@ func TestPubSub(t *testing.T) {
 		t.Errorf("Unexpected pub sub bus size:%d", len(ps.bus))
 	}
 
-	// Subsequent publishes should be noops.
+	// Subsequent publishes should be no-ops.
 	ps.Publish(1, []byte("Bar"))
 	ps.Publish(100, []byte("Bar")) // noop
 	if totalReads != 16 {
