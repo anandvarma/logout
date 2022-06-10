@@ -53,6 +53,7 @@ func (op *DrainLogOp) PublishLoop() {
 		if err != nil {
 			if err == io.EOF {
 				log.Printf("[%x] EOF!", op.tokenNum)
+				op.pubsub.Publish(op.tokenNum, nil)
 			} else {
 				log.Printf("[%x] Error reading: %v", op.tokenNum, err.Error())
 			}
@@ -66,7 +67,6 @@ func (op *DrainLogOp) PublishLoop() {
 func (op *DrainLogOp) Finish() {
 	log.Printf("[%x] Finish", op.tokenNum)
 	op.conn.Close()
-	op.rbuf.Close()
 }
 
 func (op *DrainLogOp) Token() int64 {

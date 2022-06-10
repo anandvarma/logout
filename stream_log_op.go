@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -12,13 +13,15 @@ import (
 )
 
 type StreamLogOp struct {
-	r      *http.Request
-	w      http.ResponseWriter
-	pubsub *PubSub
-	cache  *LogCache
-	ws     *websocket.Conn
-	token  int64
-	queue  chan []byte
+	r        *http.Request
+	w        http.ResponseWriter
+	pubsub   *PubSub
+	cache    *LogCache
+	ws       *websocket.Conn
+	token    int64
+	queue    chan []byte
+	ctx      context.Context
+	doneChan chan struct{}
 }
 
 func NewStreamLogOp(r *http.Request, w http.ResponseWriter, pubsub *PubSub, cache *LogCache) *StreamLogOp {
@@ -30,6 +33,7 @@ func NewStreamLogOp(r *http.Request, w http.ResponseWriter, pubsub *PubSub, cach
 		ws:     nil,
 		token:  0,
 		queue:  nil,
+		ctx:    nil,
 	}
 }
 
@@ -64,29 +68,8 @@ func (op *StreamLogOp) Start() {
 		return
 	}
 
-	// Write in progress, become a subscriber and spawn a writer to consume incoming logs.
 	log.Printf("[%x] Streaming...", op.token)
-	op.queue = make(chan []byte, STREAM_QUEUE_SIZE)
-	defer close(op.queue)
-	defer log.Printf("[%x] close(op.queue)", op.token)
-
-	op.pubsub.Subscribe(op.token, op)
-	defer op.pubsub.Unsubscribe(op.token, op)
-	defer log.Printf("[%x] pubsub.Unsubscribe()", op.token)
-
-	// Start a stream writer in the background to do the work.
-	go op.streamWriter()
-
-	// Read Loop. Blocks until websocket gets terminated by the client.
-	for {
-		mt, b, err := ws.ReadMessage()
-		if err != nil {
-			log.Printf("Failed to read from socket: %v", err)
-			break
-		}
-		log.Printf("Socket read: %d %s %v", mt, string(b), err)
-	}
-	log.Printf("[%x] Start() Completed!", op.token)
+	op.StreamLogs()
 }
 
 func (op *StreamLogOp) ParseToken() bool {
@@ -122,30 +105,83 @@ func (op *StreamLogOp) GetMemLogs() bool {
 	return !buff.IsClosed()
 }
 
-func (op *StreamLogOp) streamWriter() {
-	defer log.Printf("[%x] streamWriter goroutine ending...", op.token)
+func (op *StreamLogOp) StreamLogs() {
+	ctx, cancel := context.WithCancel(context.Background())
+	op.ctx = ctx
+	op.doneChan = make(chan struct{}, 3)
+	op.queue = make(chan []byte, STREAM_QUEUE_SIZE)
 
-	for buf := range op.queue {
-		fmt.Println("Dequeued sucessfully")
-		err := op.ws.WriteMessage(websocket.TextMessage, buf)
-		log.Printf("STREAM >> : %v", err)
-		if err != nil {
-			log.Println("Write to websocket failed, stopping stream!")
-			return
-		}
-	}
+	// Subscribe to live logs and produce into the buffer.
+	op.pubsub.Subscribe(op.token, op)
+	// Start a stream writer in the background to consume buffered logs.
+	go op.streamWriter()
+	// Read the websocket for close and other control messages.
+	go op.socketReader()
+
+	// Stop if we get a channel notification from any one of socketReader,
+	// streamWriter or SubCb.
+	<-op.doneChan
+	cancel()
+
+	log.Printf("[%x] Done, cleaning up...", op.token)
+	op.pubsub.Unsubscribe(op.token, op)
+	close(op.queue)
 }
 
 func (op *StreamLogOp) SubCb(buf []byte) bool {
 	// This function runs on the publisher's thread. Avoid blocking.
 	select {
+	case <-op.ctx.Done():
+		return false
 	case op.queue <- buf:
 		fmt.Println("Enqueued sucessfully.")
-		return true
+		return true // Stay subscribed
 	default:
-		// Queue full.
-		// The websocket is unable to keep up with the flow of incoming logs.
-		// Unsubscribe from further events.
+		log.Println("Stream buffer full, unbale to keep up with incoming logs")
+		op.doneChan <- struct{}{}
 		return false
+	}
+}
+
+func (op *StreamLogOp) streamWriter() {
+	defer log.Printf("[%x] streamWriter goroutine ending...", op.token)
+
+	for {
+		select {
+		case <-op.ctx.Done():
+			return
+		case buf := <-op.queue:
+			if buf == nil {
+				fmt.Println("Got EOF")
+				op.doneChan <- struct{}{}
+				return
+			}
+			err := op.ws.WriteMessage(websocket.TextMessage, buf)
+			log.Printf("STREAM >> : %v", err)
+			if err != nil {
+				log.Println("Write to websocket failed, stopping stream!")
+				op.doneChan <- struct{}{}
+				return
+			}
+		}
+	}
+}
+
+func (op *StreamLogOp) socketReader() {
+	defer log.Printf("[%x] socketReader goroutine ending...", op.token)
+
+	// Read Loop. Blocks until websocket gets terminated by the client.
+	for {
+		if op.ctx.Err() != nil {
+			return
+		}
+
+		mt, b, err := op.ws.ReadMessage()
+		if err != nil {
+			log.Printf("Failed to read from socket: %v", err)
+			op.doneChan <- struct{}{}
+			return
+		}
+		log.Printf("Socket read: %d %s %v", mt, string(b), err)
 	}
 }

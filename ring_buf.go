@@ -4,12 +4,14 @@ import (
 	"io"
 	"log"
 	"sync"
+	"time"
 )
 
 type RingBuf struct {
 	arr        [][]byte
 	numAppends int
-	isClosed   bool
+	startTime  int64
+	closeTime  int64
 	lock       sync.RWMutex
 }
 
@@ -17,7 +19,8 @@ func NewRingBuf(capacity int) *RingBuf {
 	return &RingBuf{
 		arr:        make([][]byte, 0 /* size */, capacity),
 		numAppends: 0,
-		isClosed:   false,
+		startTime:  0,
+		closeTime:  0,
 		lock:       sync.RWMutex{},
 	}
 }
@@ -33,6 +36,13 @@ func (ba *RingBuf) Len() int {
 	}
 }
 
+func (ba *RingBuf) IsClosed() bool {
+	ba.lock.RLock()
+	defer ba.lock.RUnlock()
+
+	return ba.closeTime > 0
+}
+
 // PubSub interface.
 func (ba *RingBuf) SubCb(buf []byte) bool {
 	log.Printf("RingBuf sub << %d", len(buf))
@@ -44,9 +54,14 @@ func (ba *RingBuf) AddBuff(buff []byte) {
 	ba.lock.Lock()
 	defer ba.lock.Unlock()
 
-	// Guardrail to prevent writes after Close.
-	if ba.isClosed {
-		log.Fatal("Writing to RingBuf after Close")
+	t := time.Now().Unix()
+	if ba.numAppends == 0 {
+		ba.startTime = t
+	}
+	if buff == nil {
+		log.Printf("EOF: Closing RingBuffer, close time: %d", t)
+		ba.closeTime = t
+		return
 	}
 
 	capOld := cap(ba.arr)
@@ -65,29 +80,9 @@ func (ba *RingBuf) AddBuff(buff []byte) {
 	}
 }
 
-func (ba *RingBuf) Close() {
-	ba.lock.Lock()
-	defer ba.lock.Unlock()
-
-	log.Println("RingBuf Close()")
-	ba.isClosed = true
-}
-
-func (ba *RingBuf) IsClosed() bool {
-	ba.lock.RLock()
-	defer ba.lock.RUnlock()
-
-	return ba.isClosed
-}
-
 func (ba *RingBuf) ForEachBuf(fn func([]byte)) {
 	ba.lock.RLock()
 	defer ba.lock.RUnlock()
-
-	// Guardrail to ensure Reads come in only after Close.
-	if !ba.isClosed {
-		//log.Fatal("Reading from RingBuf before Close")
-	}
 
 	startIdx := ba.numAppends % cap(ba.arr)
 	for ii := startIdx; ii < ba.Len(); ii++ {
