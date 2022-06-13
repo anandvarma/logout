@@ -49,7 +49,7 @@ func (ls *LogServer) Start() {
 func (ls *LogServer) StartWeb() {
 	http.HandleFunc("/", ls.staticPageHandler)
 	http.HandleFunc("/stream/", ls.webSocketHandler)
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(HOST+":"+WEB_PORT, nil)
 }
 
 func (ls *LogServer) staticPageHandler(w http.ResponseWriter, r *http.Request) {

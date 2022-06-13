@@ -15,9 +15,17 @@ type LogStore struct {
 }
 
 func NewLogStore() *LogStore {
+	var dbImpl LogDb = nil
+	if len(LOG_DB_PATH) == 0 {
+		log.Println("Using Noop LogDb")
+		dbImpl = createNoopLogDb()
+	} else {
+		log.Printf("Using FS LogDb at: %s", LOG_DB_PATH)
+		dbImpl = createFSLogDb(LOG_DB_PATH)
+	}
 	return &LogStore{
 		cache: make(map[int64]*RingBuf),
-		db:    createFSLogDb(LOG_DB_PATH),
+		db:    dbImpl,
 		lock:  sync.RWMutex{},
 	}
 }

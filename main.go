@@ -5,7 +5,7 @@ import (
 )
 
 func main() {
-	logServer := NewLogServer(HOST + ":" + PORT)
+	logServer := NewLogServer(HOST + ":" + TCP_PORT)
 	go logServer.Start()
 	logServer.StartWeb()
 

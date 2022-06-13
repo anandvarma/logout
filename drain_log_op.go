@@ -6,6 +6,8 @@ import (
 	"log"
 	"math/rand"
 	"net"
+
+	"github.com/mdp/qrterminal"
 )
 
 type DrainLogOp struct {
@@ -30,7 +32,11 @@ func (op *DrainLogOp) Start() {
 	defer op.Finish()
 
 	// Greet.
-	op.conn.Write([]byte(fmt.Sprintf("Streaming out logs at: %x", op.tokenNum)))
+	url := fmt.Sprintf("http://%s:%s/view?token=%x\n", HOST, WEB_PORT, op.tokenNum)
+	op.conn.Write([]byte(url))
+	if PRINT_QR_CODE {
+		qrterminal.GenerateHalfBlock(url, qrterminal.L, op.conn)
+	}
 	log.Printf("[%x] New connection: %s", op.tokenNum, op.conn.RemoteAddr().String())
 
 	// Add the open RingBuf to cache.
@@ -47,8 +53,8 @@ func (op *DrainLogOp) Start() {
 }
 
 func (op *DrainLogOp) PublishLoop() {
+	buf := make([]byte, READ_CHUNK_SIZE)
 	for {
-		buf := make([]byte, READ_CHUNK_SIZE)
 		readLen, err := op.conn.Read(buf)
 		if err != nil {
 			if err == io.EOF {
@@ -60,7 +66,10 @@ func (op *DrainLogOp) PublishLoop() {
 			break
 		}
 		log.Printf("[%x] Publishing %d Bytes!", op.tokenNum, readLen)
-		op.pubsub.Publish(op.tokenNum, buf[:readLen])
+		// Make a copy to reduce memory footprint and to be able to reuse the read buffer.
+		tmp := make([]byte, readLen)
+		copy(tmp, buf[:readLen])
+		op.pubsub.Publish(op.tokenNum, tmp)
 	}
 }
 
