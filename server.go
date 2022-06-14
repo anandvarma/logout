@@ -6,6 +6,8 @@ import (
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type LogServer struct {
@@ -49,6 +51,7 @@ func (ls *LogServer) Start() {
 func (ls *LogServer) StartWeb() {
 	http.HandleFunc("/", ls.staticPageHandler)
 	http.HandleFunc("/stream/", ls.webSocketHandler)
+	http.Handle("/metrics", promhttp.Handler())
 	http.ListenAndServe(HOST+":"+WEB_PORT, nil)
 }
 
