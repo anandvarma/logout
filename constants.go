@@ -1,7 +1,11 @@
 package main
 
+type Config struct {
+}
+
 const (
-	HOST              = "localhost"
+	HOST              = "0.0.0.0"
+	PUBLIC_IP         = "logout.my.to"
 	TCP_PORT          = "8888"
 	WEB_PORT          = "8080"
 	READ_CHUNK_SIZE   = 128 // Max line width when reading logs
