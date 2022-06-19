@@ -43,6 +43,8 @@ func (ls *LogServer) Start() {
 			log.Fatal("Error accepting: " + err.Error())
 		}
 
+		numTcpAccepts.Inc()
+
 		drainOp := NewDrainLogOp(conn, &ls.pubsub, &ls.ls)
 		go drainOp.Start()
 	}
@@ -59,20 +61,25 @@ func (ls *LogServer) staticPageHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Accepted HTTP Connection... %s", r.URL.Path)
 
 	if r.URL.Path == "/" {
+		numHttpHome.Inc()
 		http.ServeFile(w, r, "./html/index.html")
 		return
 	}
 	if r.URL.Path == "/view" {
+		numHttpView.Inc()
 		http.ServeFile(w, r, "./html/view.html")
 		return
 	}
 
 	// 404
+	numHttp404.Inc()
 	w.Write([]byte("404 Page Not Found!"))
 }
 
 func (ls *LogServer) webSocketHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Accepted WebSocket Connection... %s", r.URL.Path)
+	numHttpStream.Inc()
+
 	streamOp := NewStreamLogOp(r, w, &ls.pubsub, &ls.ls)
 	streamOp.Start()
 }

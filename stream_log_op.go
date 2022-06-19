@@ -115,7 +115,6 @@ func (op *StreamLogOp) GetMemLogs() bool {
 	tmp := new(strings.Builder)
 	io.Copy(tmp, buff)
 	op.ws.WriteMessage(websocket.TextMessage, []byte(tmp.String()))
-	fmt.Println(tmp.String())
 	return !buff.IsClosed()
 }
 
