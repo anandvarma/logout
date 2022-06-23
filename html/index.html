@@ -1,13 +1,89 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-    <title>LogOut</title>
+    <title>logout.my.to</title>
+    <link rel="stylesheet" href="https://unpkg.com/terminal.css@0.7.2/dist/terminal.min.css" />
+    <link rel="stylesheet" href="https://unpkg.com/terminal.css@0.7.1/dist/terminal.min.css" />
+    <link rel="stylesheet" href="https://unpkg.com/terminal.css@0.7.1/dist/terminal.min.css" />
+    <style>
+      :root {
+      --global-font-size: 15px;
+      --global-line-height: 1.4em;
+      --global-space: 10px;
+      --font-stack: Menlo, Monaco, Lucida Console, Liberation Mono,
+      DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace,
+      serif;
+      --mono-font-stack: Menlo, Monaco, Lucida Console, Liberation Mono,
+      DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace,
+      serif;
+      --background-color: #222225;
+      --page-width: 60em;
+      --font-color: #e8e9ed;
+      --invert-font-color: #222225;
+      --secondary-color: #a3abba;
+      --tertiary-color: #a3abba;
+      --primary-color: #62c4ff;
+      --error-color: #ff3c74;
+      --progress-bar-background: #3f3f44;
+      --progress-bar-fill: #62c4ff;
+      --code-bg-color: #3f3f44;
+      --input-style: solid;
+      --display-h1-decoration: none;
+      }
+    </style>
   </head>
-  <body>
-    <h2>Hello World!</h2>
-    <h3>Home</h3>
+  <body class="terminal">
+    <div class="container">
+      <div class="terminal-nav">
+        <header class="terminal-logo">
+          <div class="logo terminal-prompt"><a href="http://logout.my.to:8080" class="no-style">logout.my.to</a></div>
+        </header>
+        <nav class="terminal-menu">
+          <ul vocab="https://schema.org/" typeof="BreadcrumbList">
+            <li>
+              <a href="https://terminalcss.xyz" class="menu-item active"><span>Home</span></a>
+              <meta property="position">
+            </li>
+            <li property="itemListElement" typeof="ListItem">
+              <a href="https://github.com/anandvarma/logout" property="item" typeof="WebPage" class="menu-item"><span property="name">GitHub</span></a>
+              <meta property="position" content="2">
+            </li>
+            <li>|</li>
+            <li>
+              <input type="text" placeholder="logId" style="height: 32px; width: 150px; font-size: small;"/>
+              <button type="button" > 🔍 </button>
+            </li>
+            <li>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </div>
+    <br />
+    <div class="container">
+      <img src="https://raw.githubusercontent.com/marcusolsson/gophers/master/gophernotes-gopher.png" alt="Sunflower" style="float: right; margin-left: 10px; width: 240px">
+      <br/>
+      <p>
+        A log server written in Go, that lets you stream out logs from the command line and access them over the web in 3 simple steps...
+      </p>
+      <ul>
+        <li>Pipe the output of your command to logout</li>
+        <li>Scan the QR code that shows up on your terminal</li>
+        <li>View live streaming logs on any device</li>
+      </ul>
+      <hr />
+      <h2 id="project-goals">Usage</h2>
+      <p>The logout server listens on the <b>TCP</b> port <b>8888</b> for incoming logs. For a bare bones mechanism to stream logs, one can use <b>netcat</b> which comes pre-installed on most Linux/Unix systems. </p>
+      <pre><code class="language-js">echo "Hello World!" | nc logout.my.to 8888</code></pre>
+      <p>The piped output is streamed out to the logout server and a unique log id <i>(along with a URL and QR code)</i> is printed to the terminal, using which one can view the logs.</p>
+      <br/>
+      <h2 id="project-goals">Logout Client</h2>
+      <p>Under Construction!</p>
+      <hr />
+      <h4 id="contributors"> ❤️ Thanks! </h4>
+      <ul>
+        <li><a href="https://github.com/marcusolsson/gophers">marcusolsson/gophers</a> for the gopher artwork.</li>
+      </ul>
+    </div>
   </body>
 </html>
