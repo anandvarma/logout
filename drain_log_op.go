@@ -32,7 +32,7 @@ func (op *DrainLogOp) Start() {
 	defer op.Finish()
 
 	// Greet.
-	url := fmt.Sprintf("http://%s:%s/view?token=%x\n", PUBLIC_IP, WEB_PORT, op.tokenNum)
+	url := fmt.Sprintf("http://%s/view?token=%x\n", PUBLIC_IP, op.tokenNum)
 	op.conn.Write([]byte(url))
 	if PRINT_QR_CODE {
 		qrterminal.GenerateHalfBlock(url, qrterminal.L, op.conn)
