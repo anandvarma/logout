@@ -5,11 +5,11 @@
 
 ## What's this?
 A log server written in Go, that lets you stream out command line output and access it over the web in 3 simple steps...
-- Pipe the output of your command to logout
+- Pipe the output of your command to a logout server
 - Scan the QR code that shows up on your terminal
 - View live streaming logs on any device
 
-## Features?
+## Features
 - Websocket based live streaming
 - Built in prometheus exporter
 - More to come ...
