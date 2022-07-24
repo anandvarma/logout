@@ -2,6 +2,7 @@
 <html lang="en">
   <head>
     <title>logout.my.to</title>
+    <link rel="stylesheet" href="https://terminalcss.xyz/css/normalize.css" />
     <link rel="stylesheet" href="https://unpkg.com/terminal.css@0.7.2/dist/terminal.min.css" />
     <link rel="stylesheet" href="https://unpkg.com/terminal.css@0.7.1/dist/terminal.min.css" />
     <link rel="stylesheet" href="https://unpkg.com/terminal.css@0.7.1/dist/terminal.min.css" />
@@ -50,8 +51,14 @@
             </li>
             <li>|</li>
             <li>
-              <input type="text" placeholder="logId" style="height: 32px; width: 150px; font-size: small;"/>
-              <button type="button" > 🔍 </button>
+              <input type="text" id="logId" placeholder="logToken" style="height: 32px; width: 150px; font-size: small;"/>
+              <button type="button" OnClick="searchHandler()" > 🔍 </button>
+              <script type="text/javascript">
+                var ll = document.getElementById('logId');
+                function searchHandler() {
+                  window.location.href = './view?token='+ll.value;
+                }
+             </script>
             </li>
             <li>
             </li>
