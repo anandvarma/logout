@@ -79,7 +79,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const token = urlParams.get('token');
 
-        let socket = new WebSocket(`ws://${location.host}/stream/${token}`);
+        let socket = new WebSocket(`wss://${location.host}/stream/${token}`);
         console.log("Attempting Connection...");
 
         socket.onopen = () => {
