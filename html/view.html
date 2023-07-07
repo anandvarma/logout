@@ -67,7 +67,7 @@
       flex-grow: 1;
     }
     .footer {
-      padding-top: 1rem;
+      padding-top: 2rem;
       min-height: 17.5rem;
       flex-grow: 1;
       color: #aeaeae;
@@ -85,9 +85,8 @@
       border-radius: 1rem;
       margin: 0 auto;
       display: inline-block;
-      min-height: 40rem;
       min-width: 80rem;
-      overflow: hidden;
+      max-width: 95vw;
     }
 
     .mac-terminal__header {
@@ -116,9 +115,9 @@
     .mac-terminal__body {
       padding: 1.5rem;
       font-size: 1.3rem;
-      display: inline-block;
-      min-width: 100%;
-      max-height: calc(100vh - 20rem); /* max - header - footer */
+      max-width: 100%;
+      height: 100%;
+      max-height: calc(100vh - 25rem); /* ~ max - header - footer */
       overflow: hidden;
       overflow-x: auto;
       overflow-y: auto;
