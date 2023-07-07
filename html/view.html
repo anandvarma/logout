@@ -123,6 +123,23 @@
       overflow-y: auto;
     }
 
+    @keyframes flash {
+      0% {
+        opacity: 0;
+      }
+      100% {
+        opacity: 1;
+      }
+    }
+
+    .mac-terminal__body-cursor {
+      width: .6rem;
+      height: 1.3rem;
+      background-color: #BB6BD9;
+      border: 1px solid #BB6BD9;
+      animation: flash 1s ease-in-out infinite;
+    }
+
     /*
     ========================================
     Settings
@@ -156,6 +173,7 @@
           <div>
             <pre class="bash" id="content"></pre>
           </div>
+          <span class="mac-terminal__body-cursor" id="live"></span>
         </div>
 
       </div>
