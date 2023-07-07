@@ -1,107 +1,221 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-    <title>LogOut</title>
-    <style>
-      pre.bash {
-        background-color: #222225;
-        color: white;
-        font-size: medium;
-        font-family: Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;
-        width: 100%;
-        display: inline-block;
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+  <title>LogOut</title>
+  <link href="https://fonts.googleapis.com/css?family=Open+Sans&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro&display=swap" rel="stylesheet">  
+
+  <style>
+    /*
+    ========================================
+    Reset
+    ========================================
+    */
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    /* Dark scrollbar */
+    :root {
+      color-scheme: dark;
+    }
+
+    /*
+    ========================================
+    Basic
+    ========================================
+    */
+
+    html {
+      font-size: 62.5%;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Source Code Pro', monospace;
+      background-color: #19161e;
+      color: #fff;
+    }
+
+    /*
+    ========================================
+    Layout
+    ========================================
+    */
+
+    .container {
+      padding: 2.5vh;
+    }
+
+    /*
+    ========================================
+    Component
+    ========================================
+    */
+
+    .mac-terminal {
+      background-color: #000;
+      border-radius: 1rem;
+      min-width: 50rem;
+      min-height: 15rem;
+      margin: 0 auto;
+      height: 70vh;
+      display: inline-block;
+      overflow-y: scroll;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 4rem;
+      border-bottom: 1px solid rgba(255,255,255,.3);
+      padding: 0 1.4rem;
+    }
+    .header__op {
+      display: flex;
+      align-items: center;
+    }
+    .header__op-icon {
+      width: 1.4rem;
+      height: 1.4rem;
+      border-radius: 50%;
+      margin-right: 0.7rem;
+    }
+    .header__op-icon--red {
+      background-color: #FF544D;
+      border: 1px solid #DA3C37;
+    }
+    .header__op-icon--yellow {
+      background-color: #FFB429;
+      border: 1px solid #F0A318;
+    }
+    .header__op-icon--green {
+      background-color: #25C63A;
+      border: 1px solid #12A025;
+    }
+    .header__title {
+      color: #fff;
+      font-family: 'Open Sans', sans-serif;
+      font-size: 1.2rem;
+    }
+    .header__empty {
+      width: 5.6rem; // 1.4rem * 3 + (.7rem * 2)
+    }
+
+    @keyframes flash {
+      0% {
+        opacity: 0;
       }
-
-      .blinking-cursor {
-        font-size: small;
-        color: #2E3D48;
-        -webkit-animation: 1s blink step-end infinite;
-        -moz-animation: 1s blink step-end infinite;
-        -ms-animation: 1s blink step-end infinite;
-        -o-animation: 1s blink step-end infinite;
-        animation: 1s blink step-end infinite;
+      100% {
+        opacity: 1;
       }
+    }
 
-      @keyframes "blink" {
-        from, to {
-          color: transparent;
-        }
-        50% {
-          color: white;
-        }
-      }
+    .body {
+      font-size: 1.3rem;
+    }
+    .body__row {
+      margin-top: 0.8rem;
+      line-height: 1.7rem;
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      text-overflow:clip;
+    }
+    .body__row-arrow {
+      width: .8rem;
+      height: .6rem;
+      background-color: #40E800;
+      clip-path: polygon(75% 0%, 100% 50%, 75% 100%, 0% 100%, 25% 50%, 0% 0%);
+      margin-right: 1.5rem;
+    }
+    .body__row-command {
+      color: #40E800;
+    }
+    .body__row-cursor {
+      width: .6rem;
+      height: 1.5rem;
+      background-color: #4baac2;
+      border: 1px solid #4baac2;
+      animation: flash 1s ease-in-out infinite;
+    }
 
-      @-moz-keyframes blink {
-        from, to {
-          color: transparent;
-        }
-        50% {
-          color: white;
-        }
-      }
+  </style>
+</head>
 
-      @-webkit-keyframes "blink" {
-        from, to {
-          color: transparent;
-        }
-        50% {
-          color: white;
-        }
-      }
+<body>
+  <div class="container">
+    <div class="mac-terminal">
 
-      @-ms-keyframes "blink" {
-        from, to {
-          color: transparent;
-        }
-        50% {
-          color: white;
-        }
-      }
+      <div class="header">
+        <div class="header__op">
+          <span class="header__op-icon header__op-icon--red"></span>
+          <span class="header__op-icon header__op-icon--yellow"></span>
+          <span class="header__op-icon header__op-icon--green"></span>
+        </div>
+        <div class="header__title">user@a8a.dev:~/logout</div>
+        <div class="header__empty"></div>
+      </div>
 
-      @-o-keyframes "blink" {
-        from, to {
-          color: transparent;
-        }
-        50% {
-          color: white;
-        }
-      }
-    </style>
-  </head>
-  <body style="background-color: #222225;">
-    <pre class="bash" id="content"></pre>
-    <span class="blinking-cursor" id="live">█</span>
+      <div class="body">
+        <div class="body__row">
+          <span class="body__row-arrow"></span>
+          <span class="body__row-command">make -j32</span> 
+        </div> 
+        <div class="body__row">
+          <pre class="bash" id="content"></pre>
+        </div>
+        <div class="body__row">
+          <span class="body__row-cursor" id="live"></span>
+        </div>  
+      </div>
+  
+    </div>
+  </div>
 
-    <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const token = urlParams.get('token');
 
-        let socket = new WebSocket(`wss://${location.host}/stream/${token}`);
-        console.log("Attempting Connection...");
 
-        socket.onopen = () => {
-            console.log("Successfully Connected");
-            socket.send("Hi From the Client!")
-            document.getElementById( 'live' ).style.display = "block"
-        };
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
 
-        socket.onmessage = function(event) {
-            //alert(`[message] Data received from server`);
-            document.getElementById("content").innerHTML += event.data;
-            document.getElementById( 'live' ).scrollIntoView();
-        };
+    let socket = new WebSocket(`wss://${location.host}/stream/${token}`);
+    console.log("Attempting Connection...");
 
-        socket.onclose = event => {
-            console.log("Socket Closed Connection: ", event);
-            document.getElementById( 'live' ).style.display = "none"
-        };
+    socket.onopen = () => {
+      console.log("Successfully Connected");
+      socket.send("Hi From the Client!")
+      document.getElementById('live').style.display = "block"
+    };
 
-        socket.onerror = error => {
-            console.log("Socket Error: ", error);
-        };
-    </script>
-  </body>
+    socket.onmessage = function (event) {
+      //alert(`[message] Data received from server`);
+      document.getElementById("content").innerHTML += event.data;
+      document.getElementById('live').scrollIntoView();
+    };
+
+    socket.onclose = event => {
+      console.log("Socket Closed Connection: ", event);
+      document.getElementById('live').style.display = "none"
+    };
+
+    socket.onerror = error => {
+      console.log("Socket Error: ", error);
+    };
+  </script>
+
+</body>
+
 </html>
