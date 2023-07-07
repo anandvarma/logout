@@ -10,9 +10,10 @@
   <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro&display=swap" rel="stylesheet">  
 
   <style>
+
     /*
     ========================================
-    Reset
+    Basic
     ========================================
     */
 
@@ -27,12 +28,6 @@
       color-scheme: dark;
     }
 
-    /*
-    ========================================
-    Basic
-    ========================================
-    */
-
     html {
       font-size: 62.5%;
     }
@@ -40,6 +35,8 @@
     html, body {
       margin: 0;
       padding: 0;
+      height: 100%;
+      width: 100%;
     }
 
     body {
@@ -55,137 +52,148 @@
     */
 
     .container {
-      padding: 2.5vh;
+      padding: 3rem;
+      display: block;
+      height: 100%;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .header {
+      height: 2.5rem;
+    }
+    .hero {
+      flex-grow: 1;
+    }
+    .footer {
+      padding-top: 1rem;
+      min-height: 17.5rem;
+      flex-grow: 1;
+      color: #aeaeae;
+      border-radius: 3rem;
     }
 
     /*
     ========================================
-    Component
+    Terminal
     ========================================
     */
-
+ 
     .mac-terminal {
       background-color: #000;
       border-radius: 1rem;
-      min-width: 50rem;
-      min-height: 15rem;
       margin: 0 auto;
-      height: 70vh;
       display: inline-block;
-      overflow-y: scroll;
+      min-height: 40rem;
+      min-width: 80rem;
+      overflow: hidden;
     }
 
-    .header {
+    .mac-terminal__header {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
       height: 4rem;
       border-bottom: 1px solid rgba(255,255,255,.3);
-      padding: 0 1.4rem;
-    }
-    .header__op {
-      display: flex;
-      align-items: center;
-    }
-    .header__op-icon {
-      width: 1.4rem;
-      height: 1.4rem;
-      border-radius: 50%;
-      margin-right: 0.7rem;
-    }
-    .header__op-icon--red {
-      background-color: #FF544D;
-      border: 1px solid #DA3C37;
-    }
-    .header__op-icon--yellow {
-      background-color: #FFB429;
-      border: 1px solid #F0A318;
-    }
-    .header__op-icon--green {
-      background-color: #25C63A;
-      border: 1px solid #12A025;
-    }
-    .header__title {
+      padding-left: 1.3rem;
+      padding-top: 1.3rem;
       color: #fff;
       font-family: 'Open Sans', sans-serif;
       font-size: 1.2rem;
     }
-    .header__empty {
-      width: 5.6rem; // 1.4rem * 3 + (.7rem * 2)
+    .mac-terminal__header__dot {
+      height: 1.4rem;
+      width: 1.4rem;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 0.7rem;
+    }
+    .mac-terminal__header__title {
+      display: inline-block;
+      text-align: center;
+      width: calc(100% - 13rem);
     }
 
-    @keyframes flash {
-      0% {
-        opacity: 0;
-      }
-      100% {
-        opacity: 1;
-      }
-    }
-
-    .body {
+    .mac-terminal__body {
+      padding: 1.5rem;
       font-size: 1.3rem;
+      display: inline-block;
+      min-width: 100%;
+      max-height: calc(100vh - 20rem); /* max - header - footer */
+      overflow: hidden;
+      overflow-x: auto;
+      overflow-y: auto;
     }
-    .body__row {
-      margin-top: 0.8rem;
-      line-height: 1.7rem;
-      padding: 0 2rem;
-      display: flex;
-      align-items: center;
-      text-overflow:clip;
-    }
-    .body__row-arrow {
-      width: .8rem;
-      height: .6rem;
-      background-color: #40E800;
-      clip-path: polygon(75% 0%, 100% 50%, 75% 100%, 0% 100%, 25% 50%, 0% 0%);
+
+    /*
+    ========================================
+    Settings
+    ========================================
+    */
+    .footer__icon {
+      display: inline-block;
+      margin-left: 1.5rem;
       margin-right: 1.5rem;
     }
-    .body__row-command {
-      color: #40E800;
-    }
-    .body__row-cursor {
-      width: .6rem;
-      height: 1.5rem;
-      background-color: #4baac2;
-      border: 1px solid #4baac2;
-      animation: flash 1s ease-in-out infinite;
-    }
+    
 
   </style>
 </head>
 
 <body>
   <div class="container">
-    <div class="mac-terminal">
 
-      <div class="header">
-        <div class="header__op">
-          <span class="header__op-icon header__op-icon--red"></span>
-          <span class="header__op-icon header__op-icon--yellow"></span>
-          <span class="header__op-icon header__op-icon--green"></span>
-        </div>
-        <div class="header__title">user@a8a.dev:~/logout</div>
-        <div class="header__empty"></div>
-      </div>
+    <div class="header"></div>
 
-      <div class="body">
-        <div class="body__row">
-          <span class="body__row-arrow"></span>
-          <span class="body__row-command">make -j32</span> 
-        </div> 
-        <div class="body__row">
-          <pre class="bash" id="content"></pre>
+    <div class="hero">
+      <div class="mac-terminal">
+        <div class="mac-terminal__header">
+          <span class="mac-terminal__header__dot" style="background-color: #FF544D; border: 1px solid #DA3C37;"></span>
+          <span class="mac-terminal__header__dot" style="background-color: #FFB429; border: 1px solid #F0A318;"></span>
+          <span class="mac-terminal__header__dot" style="background-color: #25C63A; border: 1px solid #12A025;"></span>
+          <div class="mac-terminal__header__title">make -j32</div>
         </div>
-        <div class="body__row">
-          <span class="body__row-cursor" id="live"></span>
-        </div>  
+
+        <div class="mac-terminal__body">
+          <div>
+            <pre class="bash" id="content"></pre>
+          </div>
+        </div>
+
       </div>
-  
+    </div>
+    <div class="footer">
+      Control Panel
+      <hr/>
+      <br/>
+      <div>
+
+        <span class="footer__icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" class="bi bi-qr-code-scan" viewBox="0 0 16 16">
+            <path d="M0 .5A.5.5 0 0 1 .5 0h3a.5.5 0 0 1 0 1H1v2.5a.5.5 0 0 1-1 0v-3Zm12 0a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0V1h-2.5a.5.5 0 0 1-.5-.5ZM.5 12a.5.5 0 0 1 .5.5V15h2.5a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5v-3a.5.5 0 0 1 .5-.5Zm15 0a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1H15v-2.5a.5.5 0 0 1 .5-.5ZM4 4h1v1H4V4Z"/>
+            <path d="M7 2H2v5h5V2ZM3 3h3v3H3V3Zm2 8H4v1h1v-1Z"/>
+            <path d="M7 9H2v5h5V9Zm-4 1h3v3H3v-3Zm8-6h1v1h-1V4Z"/>
+            <path d="M9 2h5v5H9V2Zm1 1v3h3V3h-3ZM8 8v2h1v1H8v1h2v-2h1v2h1v-1h2v-1h-3V8H8Zm2 2H9V9h1v1Zm4 2h-1v1h-2v1h3v-2Zm-4 2v-1H8v1h2Z"/>
+            <path d="M12 9h2V8h-2v1Z"/>
+          </svg>
+        </span>
+
+        <span class="footer__icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" class="bi bi-send-check" viewBox="0 0 16 16">
+            <path d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855a.75.75 0 0 0-.124 1.329l4.995 3.178 1.531 2.406a.5.5 0 0 0 .844-.536L6.637 10.07l7.494-7.494-1.895 4.738a.5.5 0 1 0 .928.372l2.8-7Zm-2.54 1.183L5.93 9.363 1.591 6.602l11.833-4.733Z"/>
+            <path d="M16 12.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Zm-1.993-1.679a.5.5 0 0 0-.686.172l-1.17 1.95-.547-.547a.5.5 0 0 0-.708.708l.774.773a.75.75 0 0 0 1.174-.144l1.335-2.226a.5.5 0 0 0-.172-.686Z"/>
+          </svg>
+        </span>
+
+        <span class="footer__icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" class="bi bi-sign-stop-fill" viewBox="0 0 16 16">
+            <path d="M10.371 8.277v-.553c0-.827-.422-1.234-.987-1.234-.572 0-.99.407-.99 1.234v.553c0 .83.418 1.237.99 1.237.565 0 .987-.408.987-1.237Zm2.586-.24c.463 0 .735-.272.735-.744s-.272-.741-.735-.741h-.774v1.485h.774Z"/>
+            <path d="M4.893 0a.5.5 0 0 0-.353.146L.146 4.54A.5.5 0 0 0 0 4.893v6.214a.5.5 0 0 0 .146.353l4.394 4.394a.5.5 0 0 0 .353.146h6.214a.5.5 0 0 0 .353-.146l4.394-4.394a.5.5 0 0 0 .146-.353V4.893a.5.5 0 0 0-.146-.353L11.46.146A.5.5 0 0 0 11.107 0H4.893ZM3.16 10.08c-.931 0-1.447-.493-1.494-1.132h.653c.065.346.396.583.891.583.524 0 .83-.246.83-.62 0-.303-.203-.467-.637-.572l-.656-.164c-.61-.147-.978-.51-.978-1.078 0-.706.597-1.184 1.444-1.184.853 0 1.386.475 1.436 1.087h-.645c-.064-.32-.352-.542-.797-.542-.472 0-.77.246-.77.6 0 .261.196.437.553.522l.654.161c.673.164 1.06.487 1.06 1.11 0 .736-.574 1.228-1.544 1.228Zm3.427-3.51V10h-.665V6.57H4.753V6h3.006v.568H6.587Zm4.458 1.16v.544c0 1.131-.636 1.805-1.661 1.805-1.026 0-1.664-.674-1.664-1.805V7.73c0-1.136.638-1.807 1.664-1.807 1.025 0 1.66.674 1.66 1.807ZM11.52 6h1.535c.82 0 1.316.55 1.316 1.292 0 .747-.501 1.289-1.321 1.289h-.865V10h-.665V6.001Z"/>
+          </svg>
+        </span>
+
+      </div>
     </div>
   </div>
-
-
 
   <script>
     const urlParams = new URLSearchParams(window.location.search);
@@ -215,6 +223,11 @@
       console.log("Socket Error: ", error);
     };
   </script>
+
+
+
+
+
 
 </body>
 
