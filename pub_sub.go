@@ -24,8 +24,8 @@ type PubSub struct {
 	lock sync.RWMutex
 }
 
-func NewPubSub() *PubSub {
-	return &PubSub{
+func NewPubSub() PubSub {
+	return PubSub{
 		bus:  make(map[int64][]Subscriber),
 		lock: sync.RWMutex{},
 	}

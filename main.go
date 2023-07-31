@@ -5,9 +5,7 @@ import (
 )
 
 func main() {
-	logServer := NewLogServer(HOST + ":" + TCP_PORT)
-	go logServer.Start()
-	logServer.StartWeb()
-
-	fmt.Println("Done")
+	ls := NewLogoutServer()
+	ls.Run()
+	fmt.Println("Shutting down...")
 }

@@ -9,12 +9,12 @@ import (
 var ErrKeyExists = errors.New("insert will result in an overwrite")
 
 type LogStore struct {
-	cache map[int64]*RingBuf
+	cache map[int64]logState
 	db    LogDb
-	lock  sync.RWMutex
+	lock  sync.RWMutex // Can remove? All indexes are random unless we hit collisions.
 }
 
-func NewLogStore() *LogStore {
+func NewLogStore() LogStore {
 	var dbImpl LogDb = nil
 	if len(LOG_DB_PATH) == 0 {
 		log.Println("Using Noop LogDb")
@@ -23,27 +23,27 @@ func NewLogStore() *LogStore {
 		log.Printf("Using FS LogDb at: %s", LOG_DB_PATH)
 		dbImpl = createFSLogDb(LOG_DB_PATH)
 	}
-	return &LogStore{
-		cache: make(map[int64]*RingBuf),
+	return LogStore{
+		cache: make(map[int64]logState),
 		db:    dbImpl,
 		lock:  sync.RWMutex{},
 	}
 }
 
-func (lc *LogStore) MemPut(key int64, rb *RingBuf) error {
-	lc.lock.Lock()
-	defer lc.lock.Unlock()
+func (store *LogStore) MemPut(ls logState) error {
+	store.lock.Lock()
+	defer store.lock.Unlock()
 
-	_, exists := lc.cache[key]
+	_, exists := store.cache[ls.token]
 	if exists {
 		return ErrKeyExists
 	}
 
-	lc.cache[key] = rb
+	store.cache[ls.token] = ls
 	return nil
 }
 
-func (lc *LogStore) MemGet(key int64) (*RingBuf, bool) {
+func (lc *LogStore) MemGet(key int64) (logState, bool) {
 	lc.lock.RLock()
 	defer lc.lock.RUnlock()
 
@@ -52,7 +52,7 @@ func (lc *LogStore) MemGet(key int64) (*RingBuf, bool) {
 }
 
 func (lc *LogStore) Persist(key int64) {
-	rb, exists := lc.MemGet(key)
+	ls, exists := lc.MemGet(key)
 	if !exists {
 		log.Printf("%d doesn't exist, cannot persist!", key)
 		return
@@ -61,7 +61,7 @@ func (lc *LogStore) Persist(key int64) {
 	// Depending on the implementation of Commit, it may or may not block.
 	// To avoid starving other potentially much faster operations, we do not
 	// grab a lock for this section.
-	ok := lc.db.Commit(key, rb)
+	ok := lc.db.Commit(ls)
 	if !ok {
 		return
 	}

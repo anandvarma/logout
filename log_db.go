@@ -10,7 +10,7 @@ import (
 
 // The LogDb interface represents a persistent store of log buffers.
 type LogDb interface {
-	Commit(token int64, rb *RingBuf) bool
+	Commit(log logState) bool
 	GetLogBuf(token int64) []byte
 }
 
@@ -22,7 +22,7 @@ func createNoopLogDb() *NoopLogDb {
 	return &NoopLogDb{}
 }
 
-func (ldb *NoopLogDb) Commit(token int64, rb *RingBuf) bool {
+func (ldb *NoopLogDb) Commit(log logState) bool {
 	return true
 }
 
@@ -48,15 +48,15 @@ func createFSLogDb(path string) *FSLogDb {
 	return &FSLogDb{path: path}
 }
 
-func (ldb *FSLogDb) Commit(token int64, rb *RingBuf) bool {
-	f, err := os.Create(ldb.GetFilePath(token))
+func (ldb *FSLogDb) Commit(ls logState) bool {
+	f, err := os.Create(ldb.GetFilePath(ls.token))
 	if err != nil {
-		log.Printf("DB commit failed for %d", token)
+		log.Printf("DB commit failed for %d", ls.token)
 		return false
 	}
 	defer f.Close()
 
-	io.Copy(f, rb)
+	io.Copy(f, &ls.rb)
 	f.Sync()
 	return true
 }

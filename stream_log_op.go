@@ -103,7 +103,7 @@ func (op *StreamLogOp) GetPersistentLogs() bool {
 }
 
 func (op *StreamLogOp) GetMemLogs() bool {
-	buff, found := op.cache.MemGet(op.token)
+	ls, found := op.cache.MemGet(op.token)
 	if !found {
 		log.Printf("[%x] Cache Miss!", op.token)
 		op.ws.WriteMessage(websocket.TextMessage, []byte("No logs found!"))
@@ -113,9 +113,9 @@ func (op *StreamLogOp) GetMemLogs() bool {
 	// Read the ring buffer and add to the streaming queue.
 	log.Printf("[%x] Cache Hit!", op.token)
 	tmp := new(strings.Builder)
-	io.Copy(tmp, buff)
+	io.Copy(tmp, &ls.rb)
 	op.ws.WriteMessage(websocket.TextMessage, []byte(tmp.String()))
-	return !buff.IsClosed()
+	return ls.IsActive()
 }
 
 func (op *StreamLogOp) StreamLogs() {
