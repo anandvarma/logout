@@ -9,7 +9,7 @@ import (
 var ErrKeyExists = errors.New("insert will result in an overwrite")
 
 type LogStore struct {
-	cache map[int64]logState
+	cache map[int64]*logState
 	db    LogDb
 	lock  sync.RWMutex // Can remove? All indexes are random unless we hit collisions.
 }
@@ -24,13 +24,13 @@ func NewLogStore() LogStore {
 		dbImpl = createFSLogDb(LOG_DB_PATH)
 	}
 	return LogStore{
-		cache: make(map[int64]logState),
+		cache: make(map[int64]*logState),
 		db:    dbImpl,
 		lock:  sync.RWMutex{},
 	}
 }
 
-func (store *LogStore) MemPut(ls logState) error {
+func (store *LogStore) MemPut(ls *logState) error {
 	store.lock.Lock()
 	defer store.lock.Unlock()
 
@@ -43,7 +43,7 @@ func (store *LogStore) MemPut(ls logState) error {
 	return nil
 }
 
-func (lc *LogStore) MemGet(key int64) (logState, bool) {
+func (lc *LogStore) MemGet(key int64) (*logState, bool) {
 	lc.lock.RLock()
 	defer lc.lock.RUnlock()
 
@@ -61,7 +61,7 @@ func (lc *LogStore) Persist(key int64) {
 	// Depending on the implementation of Commit, it may or may not block.
 	// To avoid starving other potentially much faster operations, we do not
 	// grab a lock for this section.
-	ok := lc.db.Commit(ls)
+	ok := lc.db.Commit(*ls)
 	if !ok {
 		return
 	}

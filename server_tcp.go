@@ -23,11 +23,11 @@ func (server *LogoutServer) startTcpServer(uri string) {
 			log.Fatal("Error accepting: " + err.Error())
 		}
 		numTcpAccepts.Inc()
-		go server.handleTcpRequest(conn)
+		go server.handleTcpRequest(conn, PRINT_QR_CODE)
 	}
 }
 
-func (server *LogoutServer) handleTcpRequest(conn net.Conn) {
+func (server *LogoutServer) handleTcpRequest(conn net.Conn, qr bool) {
 	// Close the TCP connection on the way out.
 	defer conn.Close()
 
@@ -41,13 +41,13 @@ func (server *LogoutServer) handleTcpRequest(conn net.Conn) {
 	defer server.store.Persist(ls.token)
 
 	// Subscribe log state to the TCP buffers being read.
-	server.pubsub.Subscribe(ls.token, &ls)
-	defer server.pubsub.Unsubscribe(ls.token, &ls)
+	server.pubsub.Subscribe(ls.token, ls)
+	defer server.pubsub.Unsubscribe(ls.token, ls)
 
 	// Write the URL/QR-code on the TCP connection.
 	url := fmt.Sprintf("https://%s/view?token=%x\n", PUBLIC_IP, ls.token)
 	conn.Write([]byte(url))
-	if PRINT_QR_CODE {
+	if qr {
 		qrterminal.GenerateHalfBlock(url, qrterminal.L, conn)
 	}
 	log.Printf("[%x] New connection: %s", ls.token, conn.RemoteAddr().String())

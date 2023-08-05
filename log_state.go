@@ -15,8 +15,8 @@ type logState struct {
 }
 
 // NewLogState returns a new logState instance.
-func newLogState() logState {
-	return logState{
+func newLogState() *logState {
+	return &logState{
 		token:        rand.Int63n(MAX_TOKEN_NUM),
 		endTimestamp: -1,
 		rb:           NewRollingBuf(BUFF_ARR_CAP),
@@ -36,5 +36,5 @@ func (ls *logState) SubCb(buf []byte) bool {
 
 // Returns true if the log is actively being drained.
 func (ls *logState) IsActive() bool {
-	return ls.endTimestamp > 0
+	return ls.endTimestamp < 0
 }

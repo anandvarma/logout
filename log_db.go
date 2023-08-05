@@ -69,7 +69,7 @@ func (ldb *FSLogDb) GetFilePath(token int64) string {
 func (ldb *FSLogDb) GetLogBuf(token int64) []byte {
 	buf, err := os.ReadFile(ldb.GetFilePath(token))
 	if err != nil {
-		log.Printf("DB read failed for %d", token)
+		log.Printf("DB read failed for %x", token)
 		return nil
 	}
 	return buf
