@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -159,10 +160,21 @@ func (op *StreamLogOp) SubCb(buf []byte) bool {
 func (op *StreamLogOp) streamWriter() {
 	defer log.Printf("[%x] streamWriter goroutine ending...", op.token)
 
+	hbTicker := time.NewTicker(30 * time.Second)
+	defer hbTicker.Stop()
+
 	for {
 		select {
 		case <-op.ctx.Done():
 			return
+		case <-hbTicker.C:
+			log.Println("Sending Heartbeat")
+			err := op.ws.WriteMessage(websocket.PingMessage, []byte("keepalive"))
+			if err != nil {
+				log.Println("Ping to websocket failed, stopping stream!")
+				op.doneChan <- struct{}{}
+				return
+			}
 		case buf := <-op.queue:
 			if buf == nil {
 				fmt.Println("Got EOF")

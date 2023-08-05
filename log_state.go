@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"math/rand"
 	"time"
 )
@@ -27,7 +26,6 @@ func newLogState() *logState {
 func (ls *logState) SubCb(buf []byte) bool {
 	if buf == nil {
 		ls.endTimestamp = time.Now().Unix()
-		log.Printf("EOF: %v", ls)
 		return false
 	}
 	ls.rb.AddBuff(buf)
