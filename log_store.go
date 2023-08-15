@@ -1,72 +1,70 @@
 package main
 
 import (
-	"errors"
+	"fmt"
+	"io"
 	"log"
-	"sync"
+	"os"
+	"path/filepath"
 )
 
-var ErrKeyExists = errors.New("insert will result in an overwrite")
-
-type LogStore struct {
-	cache map[int64]*logState
-	db    LogDb
-	lock  sync.RWMutex // Can remove? All indexes are random unless we hit collisions.
+// The logStore interface represents a persistent store of log buffers.
+type logStore interface {
+	CommitLog(key logKey, val logVal) error
+	GetClosedLogReader(key logKey) (io.ReadCloser, error)
+	DeleteLog(key logKey) error
 }
 
-func NewLogStore() LogStore {
-	var dbImpl LogDb = nil
-	if len(LOG_DB_PATH) == 0 {
-		log.Println("Using Noop LogDb")
-		dbImpl = createNoopLogDb()
-	} else {
-		log.Printf("Using FS LogDb at: %s", LOG_DB_PATH)
-		dbImpl = createFSLogDb(LOG_DB_PATH)
-	}
-	return LogStore{
-		cache: make(map[int64]*logState),
-		db:    dbImpl,
-		lock:  sync.RWMutex{},
-	}
+// A LogStore implementation that uses the file system as a persistent store
+// of logs.
+type FSLogDb struct {
+	path string
 }
 
-func (store *LogStore) MemPut(ls *logState) error {
-	store.lock.Lock()
-	defer store.lock.Unlock()
+func createFSLogDb(path string) *FSLogDb {
+	fi, err := os.Stat(path)
+	if err != nil {
+		log.Fatalf("Failed to open DB path: %s", path)
+		return nil
+	}
+	if !fi.IsDir() {
+		log.Fatalf("DB path: %s is not a directory!", path)
+		return nil
+	}
 
-	_, exists := store.cache[ls.token]
-	if exists {
+	return &FSLogDb{path: path}
+}
+
+func (ldb *FSLogDb) CommitLog(key logKey, val logVal) error {
+	f, err := os.Create(ldb.getFilePath(key))
+	if err != nil {
+		log.Printf("DB commit failed for %v", key)
 		return ErrKeyExists
 	}
+	defer f.Close()
 
-	store.cache[ls.token] = ls
+	io.Copy(f, &val.rb)
+	f.Sync()
 	return nil
 }
 
-func (lc *LogStore) MemGet(key int64) (*logState, bool) {
-	lc.lock.RLock()
-	defer lc.lock.RUnlock()
-
-	val, exists := lc.cache[key]
-	return val, exists
+func (ldb *FSLogDb) GetClosedLogReader(key logKey) (io.ReadCloser, error) {
+	f, err := os.Open(ldb.getFilePath(key))
+	if err != nil {
+		return nil, ErrLogNotFound
+	}
+	return f, nil
 }
 
-func (lc *LogStore) Persist(key int64) {
-	ls, exists := lc.MemGet(key)
-	if !exists {
-		log.Printf("%d doesn't exist, cannot persist!", key)
-		return
+func (ldb *FSLogDb) DeleteLog(key logKey) error {
+	err := os.Remove(ldb.getFilePath(key))
+	if err != nil {
+		return ErrLogNotFound
 	}
+	return nil
+}
 
-	// Depending on the implementation of Commit, it may or may not block.
-	// To avoid starving other potentially much faster operations, we do not
-	// grab a lock for this section.
-	ok := lc.db.Commit(*ls)
-	if !ok {
-		return
-	}
-
-	lc.lock.Lock()
-	defer lc.lock.Unlock()
-	delete(lc.cache, key)
+func (ldb *FSLogDb) getFilePath(key logKey) string {
+	hexToken := fmt.Sprintf("%x", key.token)
+	return filepath.Join(ldb.path, hexToken)
 }

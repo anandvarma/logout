@@ -24,11 +24,9 @@ func TestLoogutServer(t *testing.T) {
 	checkEq(t, err, nil)
 
 	// Sanity check internal structures.
-	checkEq(t, len(logout.store.cache), 1)
-	ls, exists := logout.store.MemGet(token)
+	checkEq(t, len(logout.manager.cache), 1)
+	ls, exists := logout.manager.cache[token]
 	checkEq(t, exists, true)
-	checkEq(t, ls.IsActive(), true)
-	checkEq(t, ls.token, token)
 	checkEq(t, ls.rb.Len(), 0)
 
 	// Write some logs on the client.
@@ -43,10 +41,9 @@ func TestLoogutServer(t *testing.T) {
 	// Close the client connection and validate server state.
 	client.Close()
 	time.Sleep(100 * time.Millisecond)
-	checkEq(t, ls.IsActive(), false)
-	_, exists = logout.store.MemGet(token)
+	_, exists = logout.manager.cache[token]
 	checkEq(t, exists, false)
-	checkEq(t, len(logout.store.cache), 0)
+	checkEq(t, len(logout.manager.cache), 0)
 }
 
 func readLine(conn net.Conn) string {
@@ -55,11 +52,11 @@ func readLine(conn net.Conn) string {
 	return strings.TrimSuffix(string(buf[:readLen]), "\n")
 }
 
-func parseToken(uri string) (int64, error) {
+func parseToken(uri string) (logKey, error) {
 	u, err := url.Parse(uri)
 	if err != nil {
-		return 0, err
+		return logKey{}, err
 	}
 	n, err := strconv.ParseInt(u.Query()["token"][0], 16, 64)
-	return n, err
+	return logKey{owner: ANONYMOUS_OWNER_ID, token: n}, err
 }

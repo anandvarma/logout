@@ -33,16 +33,16 @@ func (server *LogoutServer) handleTcpRequest(conn net.Conn, qr bool) {
 
 	// Set up memory state for this log and persist when done.
 	ls := newLogState()
-	err := server.store.MemPut(ls)
+	err := server.manager.OpenLog(ls.logKey, &ls.logVal)
 	if err != nil {
-		log.Printf("Failed to add RingBuf to cache with error: %v", err)
+		log.Printf("Failed to add logState to cache with error: %v", err)
 		return
 	}
-	defer server.store.Persist(ls.token)
+	defer server.manager.CloseLog(ls.logKey)
 
 	// Subscribe log state to the TCP buffers being read.
-	server.pubsub.Subscribe(ls.token, ls)
-	defer server.pubsub.Unsubscribe(ls.token, ls)
+	server.pubsub.Subscribe(ls.logKey, ls)
+	defer server.pubsub.Unsubscribe(ls.logKey, ls)
 
 	// Write the URL/QR-code on the TCP connection.
 	url := fmt.Sprintf("https://%s/view?token=%x\n", PUBLIC_IP, ls.token)
@@ -50,30 +50,30 @@ func (server *LogoutServer) handleTcpRequest(conn net.Conn, qr bool) {
 	if qr {
 		qrterminal.GenerateHalfBlock(url, qrterminal.L, conn)
 	}
-	log.Printf("[%x] New connection: %s", ls.token, conn.RemoteAddr().String())
+	log.Printf("[%v] New connection: %s", ls.logKey, conn.RemoteAddr().String())
 
 	// Read the TCP connection for logs.
 	// This funcion does not return until the connection terminates with an EOF.
-	server.pollTcpConn(conn, ls.token)
+	server.pollTcpConn(conn, ls.logKey)
 }
 
-func (server *LogoutServer) pollTcpConn(conn net.Conn, token int64) {
+func (server *LogoutServer) pollTcpConn(conn net.Conn, key logKey) {
 	buf := make([]byte, READ_CHUNK_SIZE)
 	for {
 		readLen, err := conn.Read(buf)
 		if err != nil {
 			if err == io.EOF {
-				log.Printf("[%x] EOF!", token)
-				server.pubsub.Publish(token, nil)
+				log.Printf("[%v] EOF!", key)
+				server.pubsub.Publish(key, nil)
 			} else {
-				log.Printf("[%x] Error reading: %v", token, err.Error())
+				log.Printf("[%v] Error reading: %v", key, err.Error())
 			}
 			break
 		}
-		log.Printf("[%x] Publishing %d Bytes!", token, readLen)
+		log.Printf("[%v] Publishing %d Bytes!", key, readLen)
 		// Make a copy to reduce memory footprint and to be able to reuse the read buffer.
 		tmp := make([]byte, readLen)
 		copy(tmp, buf[:readLen])
-		server.pubsub.Publish(token, tmp)
+		server.pubsub.Publish(key, tmp)
 	}
 }

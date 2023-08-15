@@ -8,21 +8,24 @@ import (
 )
 
 type LogoutServer struct {
-	pubsub PubSub
-	store  LogStore
+	pubsub  PubSub
+	manager logManager
 }
 
 func NewLogoutServer() LogoutServer {
 	// Seed rand to avoid collisions after a restart.
 	rand.Seed(time.Now().UnixNano())
 
+	ls := createFSLogDb(FS_LOG_DB_PATH)
+	cs := createBoltConfDB(BOLT_CONF_DB_PATH)
+
 	return LogoutServer{
-		pubsub: NewPubSub(),
-		store:  NewLogStore(),
+		pubsub:  NewPubSub(),
+		manager: newLogManager(ls, cs),
 	}
 }
 
-func (ls *LogoutServer) Run() {
+func (ls *LogoutServer) Start() {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 
@@ -40,4 +43,7 @@ func (ls *LogoutServer) Run() {
 
 	wg.Wait()
 	log.Print("LogoutServer Run(): WaitGroup done.")
+}
+
+func (ls *LogoutServer) Shutdown() {
 }

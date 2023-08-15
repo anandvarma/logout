@@ -20,22 +20,22 @@ var ErrTopicNotFound = errors.New("no such topic in the pub-sub bus")
 var ErrSubNotFound = errors.New("no such sub in the pub-sub bus")
 
 type PubSub struct {
-	bus  map[int64][]Subscriber
+	bus  map[logKey][]Subscriber
 	lock sync.RWMutex
 }
 
 func NewPubSub() PubSub {
 	return PubSub{
-		bus:  make(map[int64][]Subscriber),
+		bus:  make(map[logKey][]Subscriber),
 		lock: sync.RWMutex{},
 	}
 }
 
-func (ps *PubSub) Publish(id int64, val []byte) {
+func (ps *PubSub) Publish(key logKey, val []byte) {
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()
 
-	subs, exists := ps.bus[id]
+	subs, exists := ps.bus[key]
 	if !exists || len(subs) == 0 {
 		return
 	}
@@ -45,34 +45,34 @@ func (ps *PubSub) Publish(id int64, val []byte) {
 		if !cont {
 			// Subscriber wishes to unsubscribe from further events.
 			// Defer to avoid mutating slice mid range iteration.
-			defer ps.unsubscribeUnsafe(id, sub)
+			defer ps.unsubscribeUnsafe(key, sub)
 		}
 	}
 }
 
-func (ps *PubSub) Subscribe(id int64, sub Subscriber) {
+func (ps *PubSub) Subscribe(key logKey, sub Subscriber) {
 	ps.lock.Lock()
 	defer ps.lock.Unlock()
 
-	subs, exists := ps.bus[id]
+	subs, exists := ps.bus[key]
 	if !exists {
 		subs = make([]Subscriber, 0 /* size */)
-		ps.bus[id] = subs
+		ps.bus[key] = subs
 	}
 
 	subs = append(subs, sub)
-	ps.bus[id] = subs
+	ps.bus[key] = subs
 }
 
-func (ps *PubSub) Unsubscribe(id int64, sub Subscriber) error {
+func (ps *PubSub) Unsubscribe(key logKey, sub Subscriber) error {
 	ps.lock.Lock()
 	defer ps.lock.Unlock()
 
-	return ps.unsubscribeUnsafe(id, sub)
+	return ps.unsubscribeUnsafe(key, sub)
 }
 
-func (ps *PubSub) unsubscribeUnsafe(id int64, sub Subscriber) error {
-	subs, exists := ps.bus[id]
+func (ps *PubSub) unsubscribeUnsafe(key logKey, sub Subscriber) error {
+	subs, exists := ps.bus[key]
 	if !exists || len(subs) == 0 {
 		return ErrTopicNotFound
 	}
@@ -84,13 +84,13 @@ func (ps *PubSub) unsubscribeUnsafe(id int64, sub Subscriber) error {
 
 	if len(subs) == 1 {
 		// Last sub.
-		delete(ps.bus, id)
+		delete(ps.bus, key)
 		return nil
 	}
 	// Optimized unstable delete.
 	subs[i] = subs[len(subs)-1]
 	subs = subs[:len(subs)-1]
-	ps.bus[id] = subs
+	ps.bus[key] = subs
 	return nil
 }
 

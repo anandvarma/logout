@@ -16,23 +16,21 @@ import (
 type StreamLogOp struct {
 	r        *http.Request
 	w        http.ResponseWriter
-	pubsub   *PubSub
-	cache    *LogStore
 	ws       *websocket.Conn
-	token    int64
+	server   *LogoutServer
+	key      logKey
 	queue    chan []byte
 	ctx      context.Context
 	doneChan chan struct{}
 }
 
-func NewStreamLogOp(r *http.Request, w http.ResponseWriter, pubsub *PubSub, cache *LogStore) *StreamLogOp {
+func NewStreamLogOp(r *http.Request, w http.ResponseWriter, server *LogoutServer) *StreamLogOp {
 	return &StreamLogOp{
 		r:      r,
 		w:      w,
-		pubsub: pubsub,
-		cache:  cache,
 		ws:     nil,
-		token:  0,
+		server: server,
+		key:    logKey{},
 		queue:  nil,
 		ctx:    nil,
 	}
@@ -53,80 +51,79 @@ func (op *StreamLogOp) Start() {
 	}
 	op.ws = ws
 	defer op.ws.Close()
-	defer log.Printf("[%x] ws.Close()", op.token)
 
 	// Parse stream identification token.
-	ok := op.ParseToken()
-	if !ok {
+	if err := op.parseKey(); err != nil {
 		op.ws.WriteMessage(websocket.TextMessage, []byte("Bad stream token!"))
-		fmt.Println("404")
 		return
 	}
 
-	// Fetch persisted logs.
-	done := op.GetPersistentLogs()
-	if done {
+	// Check if the log being streamed is open and stream from memory.
+	r, err := op.server.manager.GetOpenLogReader(op.key)
+	if err == nil {
+		if err := op.copyToWebSocket(r); err != nil {
+			return
+		}
+		op.streamLogs()
 		return
 	}
 
-	// Fetch the in memory logs.
-	isLive := op.GetMemLogs()
-	if !isLive {
+	// Check logStore for persisted logs that have already been closed.
+	r, err = op.server.manager.ls.GetClosedLogReader(op.key)
+	if err == nil {
+		op.copyToWebSocket(r)
 		return
 	}
-	log.Printf("[%x] Streaming...", op.token)
-	op.StreamLogs()
+
+	// Log not found in memory or in the log store.
+	op.ws.WriteMessage(websocket.TextMessage, []byte("No logs found!"))
 }
 
-func (op *StreamLogOp) ParseToken() bool {
+func (op *StreamLogOp) parseKey() error {
 	res := strings.TrimPrefix(op.r.URL.Path, "/stream/")
 	if len(res) == 0 {
-		fmt.Println("Invalid stream token!")
-		return false
+		log.Println("Invalid stream token!")
+		return ErrInvalidKey
 	}
 	n, err := strconv.ParseInt(res, 16, 64)
 	if err != nil {
-		fmt.Printf("Invalid stream token: %s", res)
-		return false
+		log.Printf("Invalid stream token: %s", res)
+		return ErrInvalidKey
 	}
-	op.token = n
-	log.Printf("[%x] %v %v", op.token, op.r.Method, op.r.RemoteAddr)
-	return true
+	op.key = logKey{owner: ANONYMOUS_OWNER_ID, token: n}
+	log.Printf("[%v] %v %v", op.key, op.r.Method, op.r.RemoteAddr)
+	return nil
 }
 
-func (op *StreamLogOp) GetPersistentLogs() bool {
-	buf := op.cache.db.GetLogBuf(op.token)
-	if buf == nil {
-		return false
-	}
-	op.ws.WriteMessage(websocket.TextMessage, buf)
-	return true
-}
-
-func (op *StreamLogOp) GetMemLogs() bool {
-	ls, found := op.cache.MemGet(op.token)
-	if !found {
-		log.Printf("[%x] Cache Miss!", op.token)
-		op.ws.WriteMessage(websocket.TextMessage, []byte("No logs found!"))
-		return false
+func (op *StreamLogOp) copyToWebSocket(r io.Reader) error {
+	w, err := op.ws.NextWriter(websocket.TextMessage)
+	if err != nil {
+		log.Printf("[%v] Failed to get WebSocket Writer with %v", op.key, err)
+		return err
 	}
 
-	// Read the ring buffer and add to the streaming queue.
-	log.Printf("[%x] Cache Hit!", op.token)
-	tmp := new(strings.Builder)
-	io.Copy(tmp, &ls.rb)
-	op.ws.WriteMessage(websocket.TextMessage, []byte(tmp.String()))
-	return ls.IsActive()
+	if _, err := io.Copy(w, r); err != nil {
+		log.Printf("[%v] Failed to Copy with %v", op.key, err)
+		return err
+	}
+
+	if err := w.Close(); err != nil {
+		log.Printf("[%v] Failed to Close with %v", op.key, err)
+		return err
+	}
+
+	return nil
 }
 
-func (op *StreamLogOp) StreamLogs() {
+func (op *StreamLogOp) streamLogs() {
+	log.Printf("[%v] Streaming...", op.key)
 	ctx, cancel := context.WithCancel(context.Background())
 	op.ctx = ctx
 	op.doneChan = make(chan struct{}, 3)
 	op.queue = make(chan []byte, STREAM_QUEUE_SIZE)
 
 	// Subscribe to live logs and produce into the buffer.
-	op.pubsub.Subscribe(op.token, op)
+	op.server.pubsub.Subscribe(op.key, op)
 	// Start a stream writer in the background to consume buffered logs.
 	go op.streamWriter()
 	// Read the websocket for close and other control messages.
@@ -137,8 +134,8 @@ func (op *StreamLogOp) StreamLogs() {
 	<-op.doneChan
 	cancel()
 
-	log.Printf("[%x] Done, cleaning up...", op.token)
-	op.pubsub.Unsubscribe(op.token, op)
+	log.Printf("[%v] Done, cleaning up...", op.key)
+	op.server.pubsub.Unsubscribe(op.key, op)
 	close(op.queue)
 }
 
@@ -158,7 +155,7 @@ func (op *StreamLogOp) SubCb(buf []byte) bool {
 }
 
 func (op *StreamLogOp) streamWriter() {
-	defer log.Printf("[%x] streamWriter goroutine ending...", op.token)
+	defer log.Printf("[%v] streamWriter goroutine ending...", op.key)
 
 	hbTicker := time.NewTicker(30 * time.Second)
 	defer hbTicker.Stop()
@@ -193,7 +190,7 @@ func (op *StreamLogOp) streamWriter() {
 }
 
 func (op *StreamLogOp) socketReader() {
-	defer log.Printf("[%x] socketReader goroutine ending...", op.token)
+	defer log.Printf("[%v] socketReader goroutine ending...", op.key)
 
 	// Read Loop. Blocks until websocket gets terminated by the client.
 	for {

@@ -53,3 +53,8 @@ func (ba *rollingBuf) Read(buff []byte) (n int, err error) {
 	})
 	return readBytes, io.EOF
 }
+
+// Closer interface.
+func (ba *rollingBuf) Close() error {
+	return nil
+}

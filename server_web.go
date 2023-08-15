@@ -40,6 +40,6 @@ func (server *LogoutServer) webSocketHandler(w http.ResponseWriter, r *http.Requ
 	log.Printf("Accepted WebSocket Connection... %s", r.URL.Path)
 	numHttpStream.Inc()
 
-	streamOp := NewStreamLogOp(r, w, &server.pubsub, &server.store)
+	streamOp := NewStreamLogOp(r, w, server)
 	streamOp.Start()
 }
