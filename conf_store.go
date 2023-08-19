@@ -6,8 +6,8 @@ import (
 	bolt "go.etcd.io/bbolt"
 )
 
-// The confStore interface represents a persistent configuration store.
-type confStore interface {
+// The ConfStore interface represents a persistent configuration store.
+type ConfStore interface {
 	AddOwner(owner string) error
 	AddLog(key logKey, val logVal) error
 	SetLogName(key logKey, name string) error

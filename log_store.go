@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 )
 
-// The logStore interface represents a persistent store of log buffers.
-type logStore interface {
+// The LogStore interface represents a persistent store of log buffers.
+type LogStore interface {
 	CommitLog(key logKey, val logVal) error
 	GetClosedLogReader(key logKey) (io.ReadCloser, error)
 	DeleteLog(key logKey) error

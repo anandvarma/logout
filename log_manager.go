@@ -8,11 +8,11 @@ import (
 type logManager struct {
 	cache map[logKey]*logVal
 	lock  sync.RWMutex
-	ls    logStore
-	cs    confStore
+	ls    LogStore
+	cs    ConfStore
 }
 
-func newLogManager(ls logStore, cs confStore) logManager {
+func newLogManager(ls LogStore, cs ConfStore) logManager {
 	return logManager{
 		cache: make(map[logKey]*logVal),
 		lock:  sync.RWMutex{},
@@ -66,6 +66,27 @@ func (lm *logManager) CloseLog(key logKey) error {
 	defer lm.lock.RUnlock()
 	delete(lm.cache, key)
 	return nil
+}
+
+func (lm *logManager) SetLabel(key logKey, label string) error {
+	lm.lock.Lock()
+	defer lm.lock.Unlock()
+
+	val, exists := lm.cache[key]
+	if !exists {
+		return ErrInvalidKey
+	}
+
+	val.label = label
+	return nil
+}
+
+func (lm *logManager) GetLabel(key logKey) (string, error) {
+	val, err := lm.getLogVal(key)
+	if err != nil {
+		return "", err
+	}
+	return val.label, nil
 }
 
 func (lm *logManager) getLogVal(key logKey) (*logVal, error) {

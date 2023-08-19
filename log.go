@@ -15,6 +15,7 @@ type logKey struct {
 type logVal struct {
 	endTimestamp int64
 	rb           rollingBuf
+	label        string
 	notif        string
 }
 
